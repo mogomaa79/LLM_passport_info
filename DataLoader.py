@@ -2,7 +2,6 @@ import os
 import traceback
 from helpers import image_to_base64, PassportExtraction
 from langchain_core.output_parsers import JsonOutputParser
-import time
 
 class DataLoader:
     def __init__(self, client, dataset_name, prompt_path, image_path):

@@ -32,6 +32,12 @@ def edit_agent_value(value, field):
     if pd.Series(value).str.match(r"^\d{4}-\d{2}-\d{2}$").any() and pd.to_datetime(value, errors='coerce') is not pd.NaT:
         # Convert to dd/mm/yyyy format
         return pd.to_datetime(value).strftime('%d/%m/%Y')
+
+    elif str(field).strip().upper() == "NATIONALITY":
+        return "PHL"
+    
+    elif str(field).strip().upper() == "MOTHER NAME":
+        return ""
     
     # Check if it's "FEMALE"
     elif value.upper() == "FEMALE":
@@ -40,14 +46,7 @@ def edit_agent_value(value, field):
     # Check if it's "MALE"
     elif value.upper() == "MALE":
         return "M"
-    
-    # Check if nationality value is "NATIONALITY"
-    elif str(field).strip().upper() == "NATIONALITY":
-        return "PHL"
-    
-    elif str(field).strip().upper() == "MOTHER NAME":
-        return ""
-    # Default: Return original value
+
     else:
         return value
 
@@ -141,19 +140,24 @@ def save_results(results, results_path):
     df.rename(columns={'input.image_id': 'image_id'}, inplace=True)
     df.to_csv(results_path, index=False)
 
-def image_to_base64(image_path):
-    """Loads an image and converts it to a base64 data URI."""
+def image_to_base64(image_path, max_size=(1024, 1024), quality=90):
+    """Loads an image, compresses it in memory, resizes it if needed, and converts it to a base64 data URI."""
     try:
         with Image.open(image_path) as img:
-            # Ensure image is in a web-friendly format like JPEG or PNG
-            output_format = "JPEG" if img.format != "PNG" else "PNG"
+            # Resize the image if it's larger than the max_size
+            img.thumbnail(max_size)
+
+            # Compress the image in memory (without saving to disk)
             buffered = BytesIO()
-            # Handle potential transparency issues when saving as JPEG
-            if output_format == "JPEG" and img.mode in ("RGBA", "P"):
-                 img = img.convert("RGB")
-            img.save(buffered, format=output_format)
+
+            # If the image is in a format that can support transparency, handle it
+            if img.mode in ("RGBA", "P"):
+                img = img.convert("RGB")  # Convert to RGB for JPEG compatibility
+
+            # Save the compressed image directly into the buffer
+            img.save(buffered, format="JPEG", quality=quality)  # Adjust quality for compression
             img_str = base64.b64encode(buffered.getvalue()).decode("utf-8")
-            return f"data:image/{output_format.lower()};base64,{img_str}"
+            return f"data:image/jpeg;base64,{img_str}"
     except FileNotFoundError:
         print(f"ERROR: Image file not found at '{image_path}'.")
         return None

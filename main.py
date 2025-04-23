@@ -24,9 +24,9 @@ ADD_DATA = False
 def main():
     client = Client(api_key=LANGSMITH_API_KEY)
     llm = ChatGoogleGenerativeAI(
-        model="gemini-2.5-flash-preview-04-17",
+        model="gemini-2.0-flash",
         google_api_key=GOOGLE_API_KEY,
-        temperature=0.5,
+        temperature=0.0,
         max_output_tokens=4096
     )
     dataloader = DataLoader(

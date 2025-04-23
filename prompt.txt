@@ -218,6 +218,17 @@ Issue Date: 15/06/2022
 
 
 Expiry Date: 14/06/2022 ❌ (Incorrect – expiry date precedes issue date)
+Example 3:
+Issue Date: 17/03/2021
+
+
+Expiry Date: 16/03/2032 ✔️ (Correct)
+Example 4:
+Issue Date: 17/03/2021
+
+
+Expiry Date: 16/03/2072 ❌ (Incorrect – expiry date is greater than issue by more than 20 years)
+
 
 
 Issuance data
@@ -235,6 +246,8 @@ Rule: If the "place of issue" begins with "PE" or "PCG" followed by a city name,
 Example:
 PE DUBAI → UAE
 PE DOHA → Qatar
+PE MANAMA → Bahrain
+PE MOSCOW → Russia
 PCG DUBAI → UAE
 PCG MANILA → Philippines
 Example:
@@ -2340,8 +2353,41 @@ Replace every hyphen -, slash /, single angle bracket <, or other special charac
 
 ### Rule 5 – Diacritic Removal
 Strip all diacritical marks from names.
+Á, À, Â, Ä, Ã, Å, Æ → A
 
 
+É, È, Ê, Ë → E
+
+
+Í, Ì, Î, Ï → I
+
+
+Ó, Ò, Ô, Ö, Õ, Ø → O
+
+
+Ú, Ù, Û, Ü → U
+
+
+Ç → C
+
+
+Ñ → N
+
+
+Ý, Ì, Î, Ï → Y
+
+
+Ž, Ž → Z
+
+
+Š, Š́, Š → S
+
+
+Ł → L
+
+
+Ř, Œ → R
+Examples
 CAMPAÑERO → CAMPANERO
 
 
@@ -2516,6 +2562,4 @@ Examples:
 Here’s the Passport Image:
 
 Reply with json now
-
-
 
