@@ -172,3 +172,14 @@ cython_debug/
 
 # PyPI configuration file
 .pypirc
+
+*.jpg
+*.jpeg
+*.png
+*.gif
+*.svg
+
+credentials.json
+token.pickle
+
+85052.jpg
