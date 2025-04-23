@@ -34,18 +34,13 @@ def edit_agent_value(value, field):
         return pd.to_datetime(value).strftime('%d/%m/%Y')
 
     elif str(field).strip().upper() == "NATIONALITY":
-        return "PHL"
+        return "ETH"
     
-    elif str(field).strip().upper() == "MOTHER NAME":
-        return ""
-    
-    # Check if it's "FEMALE"
-    elif value.upper() == "FEMALE":
-        return "F"
-    
-    # Check if it's "MALE"
-    elif value.upper() == "MALE":
-        return "M"
+    elif str(field).strip().upper() == "COUNTRY OF ISSUE":
+        return value.upper()
+
+    elif str(field).strip().upper() == "GENDER":
+        return value.upper()[0]
 
     else:
         return value

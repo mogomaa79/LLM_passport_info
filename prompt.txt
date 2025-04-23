@@ -56,9 +56,35 @@ country – ISO 3166‑1 alpha‑3 code from OCR or MRZ.
 name – given names (English): replace “‑” with space, remove apostrophes, strip diacritics.
 
 
-surname – family name (English): same cleaning as name.
+surname – family name (English): same cleaning as name. Compare with mrzSurname extracted from MRZ Code. If different, use mrzSurname.  Make sure to follow the following rules as well:
+1. Translate Non-Latin Characters to English:
 
 
+Rule: If the "place of birth" contains non-Latin characters, translate them into their English equivalent.
+
+
+Example:
+
+
+DASMARIÑAS CAV → DASMARINAS CAV (Spanish "Ñ" replaced with Latin "N")
+
+
+PARAÑAQUE MM → PARANAQUE MM (Spanish "Ñ" replaced with Latin "N")
+
+
+2. Replace Special Characters:
+
+
+Rule: Replace special characters like “‑,” “/,” and “( )” with spaces.
+
+
+Example:
+
+
+MATAG-OB LEYTE → MATAG OB LEYTE
+
+
+TAGANA-AN SGO DN → TAGANA AN SGO DN
 middle name –
  • Method A: read the labelled middle‑name field (first value only).
  • Method B: subtract MRZ given names from OCR given‑name string; remainder = middle name.
@@ -248,6 +274,7 @@ PE DUBAI → UAE
 PE DOHA → Qatar
 PE MANAMA → Bahrain
 PE MOSCOW → Russia
+PE RIYADH → Saudi Arabia
 PCG DUBAI → UAE
 PCG MANILA → Philippines
 Example:
@@ -660,40 +687,11 @@ Always set to the ISO‑alpha‑3 code ETH.
 
 
 ## 3  Fields place of issue and country of issue
-Both must always be the uppercase string ETHIOPIA (no variations).
-
-
-
-## 4  Field place of birth
-If any OCR variant of “ADDIS ABABA” is detected—
-
-
-Examples: ADP BABA, ADDIS ABAB, ADDIS—
- normalize to ADDIS ABABA.
-
-
-Do not alter any other place name, even if it looks misspelled.
-
-
-Never invent missing words; correct only obvious OCR distortions.
-
-
-Example corrections (keep exactly):
-ADP BABA ➜ ADDIS ABABA
-
-
-ADDIS ABAB ➜ ADDIS ABABA
-
-
-ADDIS ➜ ADDIS ABABA
-
-
-ADDIS ABABA ➜ ADDIS ABABA
-
-
-WINCHP ASHORT ➜ WINCHPASHORT (no change to meaning)
-
-
+Both must ALWAYS be the uppercase string ETHIOPIA (no variations).
+Example:
+Issuing Authority: MAIN DEPARTMENT FOR IMMIGRATION AND NATIONALITY AFFAIRS
+place of issue: ETHIOPIA ✅
+country of issue: ETHIOPIA ✅
 
 ## 5  Field name
 Ethiopian passports list the family name first in the visual zone, but do not flip the order.
@@ -712,8 +710,24 @@ Example mismatch: FIREHIWOT AMARE (OCR) vs FIRIEHIWOT AMARE (MRZ) → use FIRIEH
 
 
 If MRZ name is missing or unreadable, fall back to the OCR name.
+ Fields first name and middle name 
+PUT THE ENTIRE GIVEN NAME IN FIRST NAME
+Middle name is always empty “”
 
-
+	Example:
+Given Names:  RAHEL GEDAY
+First Name →  RAHEL GEDAY (Keep all given names) ✅
+Middle Name → “” ✅
+Example:
+	Given Names: MULUALEM BZUNEH
+	First name →MULUALEM BZUNEH (Keep all given names) ✅
+	Middle Name → “”✅
+ Field surname: Match against MRZ: If different, use MRZ-extracted. 
+Make sure to remove ETH from MRZ Surname: ETHWERAJ → WERAJ
+	Example:
+	OCR surname: YAE HAILE
+	MRZ surname: HAILE
+	Use: HAILE ✅
 
 ## 6  MRZ Handling
 mrzLine1 formats
@@ -2562,4 +2576,6 @@ Examples:
 Here’s the Passport Image:
 
 Reply with json now
+
+
 

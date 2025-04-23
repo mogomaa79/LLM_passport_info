@@ -7,13 +7,16 @@ from helpers import map_input_to_messages_lambda, save_results, upload_results
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.runnables import RunnableLambda
 from langsmith import Client, evaluate
+from langchain_core.runnables.retry import RunnableRetry
+from google.api_core.exceptions import ResourceExhausted
+
 
 load_dotenv()
 
 LANGSMITH_API_KEY = os.getenv("LANGSMITH_API_KEY")
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
-DATASET_NAME = "Passport Images - PHL 2"
-# DATASET_NAME = "Passport Images"
+# DATASET_NAME = "Passport Images - PHL 2"
+DATASET_NAME = "Passport Images - ETH"
 PROJECT_NAME = f"Passport Extraction {random.randint(1, 1000)}{random.randint(1, 1000)}"
 IMAGE_PATH = "filipina_yes"
 PROMPT_PATH = "prompt.txt"
@@ -27,7 +30,8 @@ def main():
         model="gemini-2.0-flash",
         google_api_key=GOOGLE_API_KEY,
         temperature=0.0,
-        max_output_tokens=4096
+        max_output_tokens=4096,
+        max_retries=10
     )
     dataloader = DataLoader(
         client=client,
@@ -54,13 +58,14 @@ def main():
 
     def exact_match(outputs: dict, reference_outputs: dict) -> bool:
         return outputs == reference_outputs
+    
     try:
         def target(inputs: dict) -> dict:
             """
             This is the target function where we ensure the input only contains the image data.
             The prompt is embedded by Langchain.
             """
-            # formatted_inputs = {"image_data_uri": inputs["image_data_uri"]}
+
             formatted_inputs = {"multimodal_prompt": inputs["multimodal_prompt"]}
 
             return llm_chain_factory().invoke(formatted_inputs)
