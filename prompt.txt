@@ -692,7 +692,30 @@ Example:
 Issuing Authority: MAIN DEPARTMENT FOR IMMIGRATION AND NATIONALITY AFFAIRS
 place of issue: ETHIOPIA ✅
 country of issue: ETHIOPIA ✅
+## 4  Field place of birth
+If any OCR variant of “ADDIS ABABA” is detected—
 
+
+Examples: ADP BABA, ADDIS ABAB, ADDIS—
+ normalize to ADDIS ABABA.
+Example corrections (keep exactly):
+ADP BABA ➜ ADDIS ABABA
+
+
+JDIS ABABA ➜ ADDIS ABABA
+
+
+ADDIS ➜ ADDIS ABABA
+
+
+ADDIS ABABA ➜ ADDIS ABABA
+
+
+WINCHP ASHORT ➜ WINCHPASHORT (no change to meaning)
+Do not alter any other place name, even if it looks misspelled.
+Example: GEMA → GEMA (No Change this does not look like ADDIS ABABA)
+Never invent missing words; correct only obvious OCR distortions.
+Replace every hyphen -, slash /, single angle bracket <, or other special character in any name (people or regions) with a single space.
 ## 5  Field name
 Ethiopian passports list the family name first in the visual zone, but do not flip the order.
 
@@ -710,6 +733,7 @@ Example mismatch: FIREHIWOT AMARE (OCR) vs FIRIEHIWOT AMARE (MRZ) → use FIRIEH
 
 
 If MRZ name is missing or unreadable, fall back to the OCR name.
+Disregard any language that is not English. Amharic or any other language is not accepted. DO NOT Try to read it as English letters.
  Fields first name and middle name 
 PUT THE ENTIRE GIVEN NAME IN FIRST NAME
 Middle name is always empty “”
@@ -722,12 +746,42 @@ Example:
 	Given Names: MULUALEM BZUNEH
 	First name →MULUALEM BZUNEH (Keep all given names) ✅
 	Middle Name → “”✅
- Field surname: Match against MRZ: If different, use MRZ-extracted. 
-Make sure to remove ETH from MRZ Surname: ETHWERAJ → WERAJ
-	Example:
-	OCR surname: YAE HAILE
-	MRZ surname: HAILE
-	Use: HAILE ✅
+ Field surname
+If the surname in the OCR (Optical Character Recognition) differs from the surname in the MRZ (Machine Readable Zone), always prioritize the MRZ surname.
+
+
+Remove any country code or national identifiers from the MRZ surname (e.g., "ETH" for Ethiopia) to ensure only the surname remains.
+
+
+Example 1:
+OCR surname: YAE HAILE
+
+
+MRZ surname: HAILE
+
+
+Action: Use HAILE (✅)
+
+
+Example 2:
+OCR surname: ETHWERAJ
+
+
+MRZ surname: WERAJ
+
+
+Action: Use WERAJ (✅)
+
+
+Example 3:
+OCR surname: ETHKASSA
+
+
+MRZ surname: KASSA
+
+
+Action: Use KASSA (✅)
+
 
 ## 6  MRZ Handling
 mrzLine1 formats
@@ -752,6 +806,24 @@ EP73030602ETH9309119F2704047<<<<<
 becomes
 
  EP73030602ETH9309119F2704047<<<<<<<<<<<<<<<<<<02
+
+[passportNumber]ETH[surname][dateOfBirth][gender][expiryDate][<<<<<<][checkDigit]
+Where:
+
+ETH is the Country Code (Ethiopia).
+
+[surname] is the Surname (with possible removal of "ETH" prefix).
+
+[dateOfBirth] is the Date of Birth in YYMMDD format.
+
+[gender] is a letter indicating the Gender (M for male, F for female).
+
+[expiryDate] is the Passport Expiry Date in YYMMDD format.
+
+[<<<<<<] is a series of < characters used for padding.
+
+[checkDigit] is a final digit or character for integrity (usually 02 at the end).
+
 
 ## 7  Implementation Checklist
 Enforce uppercase throughout before validation.
