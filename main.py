@@ -15,11 +15,12 @@ load_dotenv()
 
 LANGSMITH_API_KEY = os.getenv("LANGSMITH_API_KEY")
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
-# DATASET_NAME = "Passport Images - PHL 2"
-DATASET_NAME = "Passport Images - ETH"
+DATASET_NAME = "test"
+# DATASET_NAME = "Passport Images - ETH"
 PROJECT_NAME = f"Passport Extraction {random.randint(1, 1000)}{random.randint(1, 1000)}"
 IMAGE_PATH = "filipina_yes"
 PROMPT_PATH = "prompt.txt"
+MODEL = "gemini-2.0-flash"
 GOOGLE_SHEETS_CREDENTIALS_PATH = "credentials.json"
 SPREADSHEET_ID = "10w_D5gaP7bQNvYUlXDu_7pzZJqqfe5WlhkX-qBO3Ns8"
 ADD_DATA = False
@@ -27,11 +28,10 @@ ADD_DATA = False
 def main():
     client = Client(api_key=LANGSMITH_API_KEY)
     llm = ChatGoogleGenerativeAI(
-        model="gemini-2.0-flash",
+        model=MODEL,
         google_api_key=GOOGLE_API_KEY,
         temperature=0.0,
         max_output_tokens=4096,
-        max_retries=10
     )
     dataloader = DataLoader(
         client=client,
@@ -42,6 +42,7 @@ def main():
 
     json_parser = dataloader.json_parser
     input_mapper_runnable = RunnableLambda(map_input_to_messages_lambda)
+    runnable_retry = input_mapper_runnable.with_retry(stop_after_attempt=5)
 
     if ADD_DATA:
         try:
@@ -52,7 +53,7 @@ def main():
             traceback.print_exc()
 
     def llm_chain_factory():
-        return input_mapper_runnable | llm | json_parser
+        return runnable_retry | llm | json_parser
 
     print(f"\nStarting run on dataset '{DATASET_NAME}' with project name '{PROJECT_NAME}'...")
 
