@@ -693,12 +693,9 @@ Issuing Authority: MAIN DEPARTMENT FOR IMMIGRATION AND NATIONALITY AFFAIRS
 place of issue: ETHIOPIA ✅
 country of issue: ETHIOPIA ✅
 ## 4  Field place of birth
-If any OCR variant of “ADDIS ABABA” is detected—
+If any OCR variant of “ADDIS ABABA” is detected, normalize it to ADDIS ABABA.
 
-
-Examples: ADP BABA, ADDIS ABAB, ADDIS—
- normalize to ADDIS ABABA.
-Example corrections (keep exactly):
+Examples:
 ADP BABA ➜ ADDIS ABABA
 
 
@@ -708,14 +705,35 @@ JDIS ABABA ➜ ADDIS ABABA
 ADDIS ➜ ADDIS ABABA
 
 
-ADDIS ABABA ➜ ADDIS ABABA
+ADDIS ABABA ➜ ADDIS ABABA (no change)
 
 
-WINCHP ASHORT ➜ WINCHPASHORT (no change to meaning)
-Do not alter any other place name, even if it looks misspelled.
-Example: GEMA → GEMA (No Change this does not look like ADDIS ABABA)
-Never invent missing words; correct only obvious OCR distortions.
-Replace every hyphen -, slash /, single angle bracket <, or other special character in any name (people or regions) with a single space.
+
+Other Place Name Guidelines:
+Do not alter other place names, even if they appear misspelled, unless they are clearly meant to be “ADDIS ABABA.”
+
+
+Example: GEMA ➜ GEMA (No Change — this is not a variation of ADDIS ABABA)
+
+
+Do not invent missing words. Only correct obvious OCR distortions.
+
+
+Example: WINCHP ASHORT ➜ WINCHPASHORT (Correcting a spacing error but no meaning change)
+
+
+Replace any special characters like hyphens (-), slashes (/), single angle brackets (<), or other symbols in place names with a single space.
+
+
+Example: T/MACHEW ➜ T MACHEW
+
+
+Example: S/TSAEDENBA ➜ S TSAEDENBA
+
+
+Example: SIMJABET ➜ SIMJABET (No change if correct spelling)
+
+
 ## 5  Field name
 Ethiopian passports list the family name first in the visual zone, but do not flip the order.
 
@@ -824,6 +842,7 @@ ETH is the Country Code (Ethiopia).
 
 [checkDigit] is a final digit or character for integrity (usually 02 at the end).
 
+Make sure to match everything in the MRZ area with OCR. Give priority to MRZ. 
 
 ## 7  Implementation Checklist
 Enforce uppercase throughout before validation.
