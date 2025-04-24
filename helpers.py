@@ -36,7 +36,7 @@ def edit_agent_value(value, field):
     elif str(field).strip().upper() == "NATIONALITY":
         return "ETH"
     
-    elif str(field).strip().upper() == "COUNTRY OF ISSUE" or str(field).strip().upper() == "Passport Place(EN)":
+    elif str(field).strip().upper() == "COUNTRY OF ISSUE" or str(field).strip().upper() == "PASSPORT PLACE(EN)":
         return value.upper()
 
     elif str(field).strip().upper() == "GENDER":
