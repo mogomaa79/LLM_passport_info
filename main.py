@@ -30,7 +30,7 @@ def main():
     llm = ChatGoogleGenerativeAI(
         model=MODEL,
         google_api_key=GOOGLE_API_KEY,
-        temperature=0.0,
+        temperature=0.2,
         max_output_tokens=4096,
     )
     dataloader = DataLoader(

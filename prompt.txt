@@ -56,7 +56,7 @@ country – ISO 3166‑1 alpha‑3 code from OCR or MRZ.
 name – given names (English): replace “‑” with space, remove apostrophes, strip diacritics.
 
 
-surname – family name (English): same cleaning as name. Compare with mrzSurname extracted from MRZ Code. If different, use mrzSurname.  Make sure to follow the following rules as well:
+surname – family name (English): same cleaning as name. Compare with mrzSurname extracted from MRZ Code. If different, ALWAYS use mrzSurname.  Make sure to follow the following rules as well:
 1. Translate Non-Latin Characters to English:
 
 
@@ -680,35 +680,39 @@ EX1234567 → reject (wrong prefix)
 EP12A4567 → reject (letter inside digit block)
 
 
-
 ## 2  Field country
 Always set to the ISO‑alpha‑3 code ETH.
 
 
-
 ## 3  Fields place of issue and country of issue
-Both must ALWAYS be the uppercase string ETHIOPIA (no variations).
-Example:
+Both Place of Issue and Country of Issue must always be set to "ETHIOPIA" in uppercase (no variations allowed).
+Examples:
 Issuing Authority: MAIN DEPARTMENT FOR IMMIGRATION AND NATIONALITY AFFAIRS
-place of issue: ETHIOPIA ✅
-country of issue: ETHIOPIA ✅
+
+
+Place of Issue: ETHIOPIA ✅
+
+
+Country of Issue: ETHIOPIA ✅
+
+
+Passport Place (EN): ETHIOPIA
+
+
+Place of Issue: ETHIOPIA ✅
+
+
 ## 4  Field place of birth
 If any OCR variant of “ADDIS ABABA” is detected, normalize it to ADDIS ABABA.
-
 Examples:
 ADP BABA ➜ ADDIS ABABA
-
-
 JDIS ABABA ➜ ADDIS ABABA
-
-
 ADDIS ➜ ADDIS ABABA
-
-
 ADDIS ABABA ➜ ADDIS ABABA (no change)
-
-
-
+WONJI GEFERSA → WONJI GEFERSA (no change)
+BATILEJANA → BATILEJANA (no change)
+WOLLO → WOLLO (no change)
+Same goes for all other birth places in ETHIOPIA.
 Other Place Name Guidelines:
 Do not alter other place names, even if they appear misspelled, unless they are clearly meant to be “ADDIS ABABA.”
 
@@ -764,13 +768,18 @@ Example:
 	Given Names: MULUALEM BZUNEH
 	First name →MULUALEM BZUNEH (Keep all given names) ✅
 	Middle Name → “”✅
+3. Compare with MRZ given names. If it differs, always prioritize MRZ given names.
+Example:
+Given Names (OCR): CAZSOLOMON BEKELE
+MRZ Given Names: SOLOMON BEKELE
+
+
+First Name: SOLOMON BEKELE ✅
  Field surname
 If the surname in the OCR (Optical Character Recognition) differs from the surname in the MRZ (Machine Readable Zone), always prioritize the MRZ surname.
 
 
 Remove any country code or national identifiers from the MRZ surname (e.g., "ETH" for Ethiopia) to ensure only the surname remains.
-
-
 Example 1:
 OCR surname: YAE HAILE
 
@@ -792,13 +801,13 @@ Action: Use WERAJ (✅)
 
 
 Example 3:
-OCR surname: ETHKASSA
+OCR surname: ETHERKO
 
 
-MRZ surname: KASSA
+MRZ surname: ERKO
 
 
-Action: Use KASSA (✅)
+Action: Use ERKO (✅)
 
 
 ## 6  MRZ Handling
@@ -830,7 +839,7 @@ Where:
 
 ETH is the Country Code (Ethiopia).
 
-[surname] is the Surname (with possible removal of "ETH" prefix).
+[surname] is the Surname.
 
 [dateOfBirth] is the Date of Birth in YYMMDD format.
 
@@ -842,7 +851,40 @@ ETH is the Country Code (Ethiopia).
 
 [checkDigit] is a final digit or character for integrity (usually 02 at the end).
 
+Fields birthdate, passport issue date, and  passport expiry date
 Make sure to match everything in the MRZ area with OCR. Give priority to MRZ. 
+
+MRZ Date Format:
+Date of Birth: Found in the MRZ as YYMMDD (e.g., 930911 for 1993-09-11).
+
+
+Expiry Date: Found in the MRZ as YYMMDD (e.g., 270404 for 2027-04-04).
+
+
+If a discrepancy occurs between OCR and MRZ, MRZ should take precedence.
+
+
+
+Example: Checking Dates and MRZ Consistency
+Given the following dates (extracted from OCR or MRZ):
+OCR Date: 10/02/2000
+ MRZ Date: 000210
+ Action: Correct the OCR date to align with the MRZ. The corrected format should be 10/02/2000 as per the MRZ (YYMMDD).
+
+
+OCR Date: 02/01/2007
+ MRZ Date: 070102
+ Action: Ensure OCR date is corrected to 02/01/2007 (YYMMDD format).
+
+
+OCR Expiry Date: 24/04/2024
+ MRZ Expiry Date: 240424
+ Action: 24/04/2024 should be checked to match the MRZ expiry date.
+
+
+OCR Expiry Date: 28/10/2028
+ MRZ Expiry Date: 281028
+ Action: Ensure consistency and align with 28/10/2028.
 
 ## 7  Implementation Checklist
 Enforce uppercase throughout before validation.
