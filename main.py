@@ -7,9 +7,6 @@ from helpers import map_input_to_messages_lambda, save_results, upload_results
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.runnables import RunnableLambda
 from langsmith import Client, evaluate
-from langchain_core.runnables.retry import RunnableRetry
-from google.api_core.exceptions import ResourceExhausted
-
 
 load_dotenv()
 
@@ -41,8 +38,8 @@ def main():
     )
 
     json_parser = dataloader.json_parser
-    input_mapper_runnable = RunnableLambda(map_input_to_messages_lambda)
-    runnable_retry = input_mapper_runnable.with_retry(stop_after_attempt=5)
+    runnable = RunnableLambda(map_input_to_messages_lambda)
+    llm_retry = llm.with_retry(stop_after_attempt=5)
 
     if ADD_DATA:
         try:
@@ -53,7 +50,7 @@ def main():
             traceback.print_exc()
 
     def llm_chain_factory():
-        return runnable_retry | llm | json_parser
+        return runnable | llm_retry | json_parser
 
     print(f"\nStarting run on dataset '{DATASET_NAME}' with project name '{PROJECT_NAME}'...")
 
