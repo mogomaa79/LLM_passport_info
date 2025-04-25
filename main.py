@@ -12,14 +12,15 @@ load_dotenv()
 
 LANGSMITH_API_KEY = os.getenv("LANGSMITH_API_KEY")
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
-DATASET_NAME = "Passport Images - ETH"
-PROJECT_NAME = f"Passport Extraction {random.randint(1, 1000)}{random.randint(1, 1000)}"
-IMAGE_PATH = "filipina_yes"
+# DATASET_NAME = "Passport Images - ETH"
+DATASET_NAME = "test"
+IMAGE_PATH = "Copy of ethiopian/ethiopian_yes"
 PROMPT_PATH = "prompt.txt"
 MODEL = "gemini-2.0-flash"
 GOOGLE_SHEETS_CREDENTIALS_PATH = "credentials.json"
 SPREADSHEET_ID = "10w_D5gaP7bQNvYUlXDu_7pzZJqqfe5WlhkX-qBO3Ns8"
-ADD_DATA = False
+PROJECT_NAME = f"{DATASET_NAME} - {MODEL} - {random.randint(0, 100)}"
+ADD_DATA = True
 
 def main():
     client = Client(api_key=LANGSMITH_API_KEY)

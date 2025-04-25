@@ -160,27 +160,22 @@ def image_to_base64(image_path, max_size=(1024, 1024), quality=90):
         print(f"Error processing image {image_path}: {e}")
         return None
 
-# def map_input_to_messages_lambda(inputs: dict):
-#     image_data_uri = inputs.get("image_data_uri")
-    
-#     if not image_data_uri:
-#         raise ValueError(
-#             f"Expected 'inputs' dict to have key 'image_data_uri' containing image data, "
-#             f"but got: {inputs}"
-#         )
-    
-#     messages = [
-#         HumanMessage(content=prompt + "\n\n" + image_data_uri),
-#     ]
-    
-#     return messages
 def map_input_to_messages_lambda(inputs: dict):
     multimodal_prompt = inputs.get("multimodal_prompt")
-    
+    multimodal_prompt.insert(0, {"type": "text", "text": prompt})
     messages = [
         HumanMessage(content=multimodal_prompt),
     ]
+    
     return messages
+
+# def map_input_to_messages_lambda(inputs: dict):
+#     multimodal_prompt = inputs.get("multimodal_prompt")
+    
+#     messages = [
+#         HumanMessage(content=multimodal_prompt),
+#     ]
+#     return messages
 
 
 class PassportExtraction(BaseModel):

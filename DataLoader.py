@@ -25,7 +25,7 @@ class DataLoader:
                 description="Dataset containing passport images and extraction prompts for Gemini evaluation.",
             )
         return dataset
-    
+
     def load_prompt(self):
         try:
             with open(self.prompt_path, "r", encoding="utf-8") as f:
@@ -46,49 +46,64 @@ class DataLoader:
 
     def load_examples(self):
         """
-        Loads image examples and prepares multimodal prompts, only passing the image for input.
-        The prompt will be embedded by Langchain.
+        Loads image examples, prepares multimodal prompts, and stores
+        the filename without extension under the 'id' key.
         """
-        self.examples = []  # Clear previous examples if run multiple times
-
+        self.examples = [] # Clear previous examples if run multiple times
         try:
             if not os.path.isdir(self.image_path):
-                print(f"Error: Image directory not found at {self.image_path}")
-                return
+                 print(f"Error: Image directory not found at {self.image_path}")
+                 return
 
             image_files = [f for f in os.listdir(self.image_path) if f.lower().endswith((".png", ".jpg", ".jpeg"))]
+
             print(f"Preparing {len(image_files)} examples from {self.image_path}...")
 
             for img_filename in image_files:
                 image_full_path = os.path.join(self.image_path, img_filename)
-                reference_output = None  # Assuming no reference output for now
+                reference_output = None # Assuming no reference output for now
 
+                # --- Modification Start ---
+                # Extract filename without extension
                 filename_without_extension, _ = os.path.splitext(img_filename)
-                example_id = filename_without_extension 
+                example_id = filename_without_extension # Use the filename without extension as the id
+                # --- Modification End ---
 
                 image_data_uri = image_to_base64(image_full_path)
                 if not image_data_uri:
                     print(f"Skipping example due to image processing error for: {image_full_path}")
                     continue
 
+                multimodal_content = [
+                    # {"type": "text", "text": self.prompt},
+                    {
+                        "type": "image_url",
+                        "image_url": {"url": image_data_uri},
+                    },
+                ]
+
                 example_inputs = {
-                    "image_data_uri": image_data_uri,
-                    "image_id": example_id
+                    "multimodal_prompt": multimodal_content,
+                    "image_id": example_id # Add image_id directly to inputs
                 }
 
+                # --- Modification Start ---
                 self.examples.append(
                     {
                         "inputs": example_inputs,
                         "outputs": {"expected_json": reference_output} if reference_output is not None else None,
                     }
                 )
+                # --- Modification End ---
 
             print(f"Prepared {len(self.examples)} examples.")
+
         except FileNotFoundError:
-            print(f"Error: Image directory not found at {self.image_path}")
+             print(f"Error: Image directory not found at {self.image_path}")
         except Exception as e:
             print(f"An error occurred loading examples: {e}")
             traceback.print_exc()
+
 
     def upload_to_dataset(self):
         """
@@ -102,7 +117,7 @@ class DataLoader:
                 inputs = [ex["inputs"] for ex in self.examples]
                 outputs = [ex["outputs"] for ex in self.examples]
 
-                chunk_size = 4
+                chunk_size = 24
                 for i in range(0, len(self.examples), chunk_size):
                     chunk_inputs = inputs[i:i + chunk_size]
                     chunk_outputs = outputs[i:i + chunk_size]
