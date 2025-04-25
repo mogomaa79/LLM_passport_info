@@ -1000,8 +1000,10 @@ Replace every hyphen - with a space, keep all other characters unchanged.
 
 
 Example: REGISTRAR GENERAL‑HRE → REGISTRAR GENERAL HRE.
+If the value looks like “GOVERNMENT OF KENYA”, normalize it to  “GOVERNMENT OF KENYA”.
 
 
+Example: GOVERNMENT OF KENTA → GOVERNMENT OF KENYA.
 
 ## 5  Field country of issue
 Always set to the uppercase word KENYA (no variations).
@@ -2777,4 +2779,3 @@ Output: Consolidated_Data (dictionary of field names to chosen values) and Conso
     *   **Structure and Order:** Ensure the output strictly adheres to the specified JSON key order and structure.
 
 10. **Return Output:** Return *only* the final, validated JSON object.
-
