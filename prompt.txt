@@ -60,16 +60,16 @@ surname – family name (English): same cleaning as name. Compare with mrzSurnam
 1. Translate Non-Latin Characters to English:
 
 
-Rule: If the "place of birth" contains non-Latin characters, translate them into their English equivalent.
+Rule: If the "surname" contains non-Latin characters, translate them into their English equivalent.
 
 
 Example:
 
 
-DASMARIÑAS CAV → DASMARINAS CAV (Spanish "Ñ" replaced with Latin "N")
+MARIÑA→ MARINA(Spanish "Ñ" replaced with Latin "N")
 
 
-PARAÑAQUE MM → PARANAQUE MM (Spanish "Ñ" replaced with Latin "N")
+RAÑAQUE→ RANAQUE(Spanish "Ñ" replaced with Latin "N")
 
 
 2. Replace Special Characters:
@@ -230,7 +230,12 @@ birth date – DD/MM/YYYY; parse OCR and cross‑check mrzDateOfBirth.
 Document chronology
 
 
-issue date – DD/MM/YYYY; must precede expiry date; correct if reversed.
+issue date – DD/MM/YYYY.
+**Strict Requirement:** Extract *only* from the designated OCR "Date of Issue" field, exactly as labeled on the passport page.
+**If *any* part of the date (day, month, or year) within this specific field's text is absent, illegible, or significantly obscured after OCR attempts, the *entire* `issue date` field must be output as `""`.**
+Do not infer, guess, calculate, or generate this date using *any* information from other fields, including the MRZ, expiry date, date of birth, or document lifespan rules. **The extraction must rely solely on the readable characters within the designated "Date of Issue" area.**
+Contextual interpretation of a clearly legible two-digit year (YY) to determine the century (e.g., deciding between 19YY and 20YY based on the expiry date) is permissible, but *only* if the YY digits themselves are clearly readable in the "Date of Issue" field. This context cannot be used to guess a missing or illegible year or any other part of the date.
+The final validated value (if readable) must be formatted as DD/MM/YYYY and must logically precede the expiry date (if both are present and valid).
 
 
 expiry date – DD/MM/YYYY; cross‑check mrzDateOfExpiry.
@@ -317,8 +322,10 @@ MRZ‑derived
 mrzLine1, mrzLine2 – full lines with < padding.
 
 
-mrzDateOfBirth, mrzDateOfExpiry – parsed from MRZ and converted to DD/MM/YYYY. mrzSex, mrzSurname, mrzGivenNames – parsed from the MRZ Line 1 substring found after the first << and before the next < or the end of the line before triple angle brackets <<<. Convert any single < characters within this substring to spaces, then strip leading/trailing spaces and collapse consecutive spaces.
-(Note: Keep the other fields in that sentence as they were)
+mrzDateOfBirth, mrzDateOfExpiry – parsed from MRZ and converted from YYMMDD to DD/MM/YYYY. mrzSex, mrzSurname, mrzGivenNames – parsed from the MRZ Line 1 substring found after the first << and before the next < or the end of the line before triple angle brackets <<<. Convert any single < characters within this substring to spaces, then strip leading/trailing spaces and collapse consecutive spaces.
+MRZ Line 1 may contain ISO 3166‑1 alpha‑3 code before given names and surname:
+P<ETHERKO<<....      → mrzSurname: “ERKO” not “ETHERKO”
+P<ETHALEM<<HANA<...    → mrzSurname: “ALEM” not “ETHALEM”
 
 
 Audit (raw OCR) fields
@@ -586,11 +593,6 @@ Ensure the returned string is always length 9.
 
 
 Keep a transient debug log of rejected tokens and reasons only during development; purge logs and raw data in production to satisfy GDPR.
-
-
-
-
-
 CASE 2: Ethiopia - ETH - Ethiopian\
 ### Scope
  Apply this section only when:
@@ -601,7 +603,6 @@ The previously extracted country field equals ETH.
 
 
 These rules override the master prompt only for the fields explicitly listed below.
-
 ## 1  Field number – Ethiopian Passport Number
 #### 1.1 Extraction Sources (in priority order)
 MRZ candidate – characters 1‑9 of mrzLine2 (after reconstructing the line if OCR broke it).
@@ -678,28 +679,20 @@ EX1234567 → reject (wrong prefix)
 
 
 EP12A4567 → reject (letter inside digit block)
-
-
 ## 2  Field country
 Always set to the ISO‑alpha‑3 code ETH.
 
 
 ## 3  Fields place of issue and country of issue
-Both Place of Issue and Country of Issue must always be set to "ETHIOPIA" in uppercase (no variations allowed).
+Both Place of Issue and Country of Issue must always be set to "ETHIOPIA" in uppercase (no variations allowed) regardless of the data extracted from OCR.
 Examples:
 Issuing Authority: MAIN DEPARTMENT FOR IMMIGRATION AND NATIONALITY AFFAIRS
 
 
-Place of Issue: ETHIOPIA ✅
+place of issue → ETHIOPIA ✅
 
 
-Country of Issue: ETHIOPIA ✅
-
-
-Passport Place (EN): ETHIOPIA
-
-
-Place of Issue: ETHIOPIA ✅
+country of issue →  ETHIOPIA ✅
 
 
 ## 4  Field place of birth
@@ -712,6 +705,7 @@ ADDIS ABABA ➜ ADDIS ABABA (no change)
 WONJI GEFERSA → WONJI GEFERSA (no change)
 BATILEJANA → BATILEJANA (no change)
 WOLLO → WOLLO (no change)
+MESKAN → MESKAN (no change)
 Same goes for all other birth places in ETHIOPIA.
 Other Place Name Guidelines:
 Do not alter other place names, even if they appear misspelled, unless they are clearly meant to be “ADDIS ABABA.”
@@ -724,6 +718,7 @@ Do not invent missing words. Only correct obvious OCR distortions.
 
 
 Example: WINCHP ASHORT ➜ WINCHPASHORT (Correcting a spacing error but no meaning change)
+In case OCR value is unapparent, resort to empty string “”
 
 
 Replace any special characters like hyphens (-), slashes (/), single angle brackets (<), or other symbols in place names with a single space.
@@ -775,39 +770,37 @@ MRZ Given Names: SOLOMON BEKELE
 
 
 First Name: SOLOMON BEKELE ✅
- Field surname
+ Fields surname and mrzSurname
 If the surname in the OCR (Optical Character Recognition) differs from the surname in the MRZ (Machine Readable Zone), always prioritize the MRZ surname.
-
-
-Remove any country code or national identifiers from the MRZ surname (e.g., "ETH" for Ethiopia) to ensure only the surname remains.
-Example 1:
+Example:
 OCR surname: YAE HAILE
 
 
 MRZ surname: HAILE
 
 
-Action: Use HAILE (✅)
+surname: Use HAILE (✅)
+
+
+Make sure to remove "ETH" from surname and mrzSurname to ensure only the surname remains.
+Example 1:
+OCR surname: AESWERAJ
+
+
+MRZ surname: ETHWERAJ
+
+
+surname: Use WERAJ (✅remove “ETH” from MRZ)
 
 
 Example 2:
-OCR surname: ETHWERAJ
-
-
-MRZ surname: WERAJ
-
-
-Action: Use WERAJ (✅)
-
-
-Example 3:
 OCR surname: ETHERKO
 
 
-MRZ surname: ERKO
+MRZ surname: ETHERKO
 
 
-Action: Use ERKO (✅)
+surname: Use ERKO (✅remove “ETH” from MRZ)
 
 
 ## 6  MRZ Handling
@@ -815,9 +808,12 @@ mrzLine1 formats
 
 
 For EP numbers: P<ETH[SURNAME]<<[GIVEN_NAMES]<<<<…
-
-
 For EQ numbers: PQETH[SURNAME]<<[GIVEN_NAMES]<<<<…
+Field mrzSurname
+Make sure to remove the prefix "ETH" when it is extracted by mistake.
+MRZ surname: ETHWERAJ
+mrzSurname: WERAJ (✅remove “ETH” from MRZ)
+
 
 
 mrzLine2 reconstruction
@@ -834,23 +830,6 @@ becomes
 
  EP73030602ETH9309119F2704047<<<<<<<<<<<<<<<<<<02
 
-[passportNumber]ETH[surname][dateOfBirth][gender][expiryDate][<<<<<<][checkDigit]
-Where:
-
-ETH is the Country Code (Ethiopia).
-
-[surname] is the Surname.
-
-[dateOfBirth] is the Date of Birth in YYMMDD format.
-
-[gender] is a letter indicating the Gender (M for male, F for female).
-
-[expiryDate] is the Passport Expiry Date in YYMMDD format.
-
-[<<<<<<] is a series of < characters used for padding.
-
-[checkDigit] is a final digit or character for integrity (usually 02 at the end).
-
 Fields birthdate, passport issue date, and  passport expiry date
 Make sure to match everything in the MRZ area with OCR. Give priority to MRZ. 
 
@@ -862,7 +841,6 @@ Expiry Date: Found in the MRZ as YYMMDD (e.g., 270404 for 2027-04-04).
 
 
 If a discrepancy occurs between OCR and MRZ, MRZ should take precedence.
-
 
 
 Example: Checking Dates and MRZ Consistency
@@ -2708,7 +2686,81 @@ Examples:
 </Rules>
 Here’s the Passport Image:
 
-Reply with json now
+**Final Validation and JSON Generation Process (Two-Pass OCR):**
+
+Define Pre-requisites:
+Input: input_image (The fully pre-processed passport image).
+Configuration: Load Master Prompt rules, Nationality-Specific rules (if nationality is known or can be inferred early), and the specified high-accuracy OCR engine settings.
+Target Fields: Identify the complete list of JSON fields to be extracted.
+OCR Pass 1: Initial Extraction
+Action: Execute the highest-accuracy OCR engine on the input_image.
+Extraction: Attempt to extract data for all target JSON fields based on layout rules, keywords, and patterns defined in the Master Prompt and relevant Nationality-Specific rules.
+Initial Cleaning: Apply basic, universal cleaning to raw OCR output for each field:
+Trim leading/trailing whitespace.
+Normalize whitespace within the string (e.g., replace multiple spaces with a single space).
+Perform predefined, safe character substitutions (e.g., O -> 0, I -> 1 only if contextually appropriate and defined in rules, potentially handling common OCR misreads for specific characters like ° -> O).
+Output: Store the results in a temporary structure: OCR_Result_Pass1 (e.g., a dictionary mapping field names to cleaned string values).
+Validation Pass 1: Field-Level Check
+Action: For each field present in OCR_Result_Pass1:
+Retrieve the corresponding value.
+Validate it against all applicable rules from the Master Prompt and Nationality-Specific sections. This includes:
+Format: (e.g., DD/MM/YYYY for dates, specific character sets like A-Z, 0-9).
+Length: (e.g., fixed length, min/max length).
+Content: (e.g., valid country codes, gender codes (M/F/X), checksums internal to the field if applicable, valid character ranges).
+Consistency (Non-MRZ): (e.g., Date of Expiry > Date of Issue).
+Crucially Exclude: Do not perform MRZ cross-validation at this stage.
+Output: Store the validation outcomes in Validation_Status_Pass1. This should map each field name to a status object, e.g., { isValid: boolean, reason: string | null }. isValid is True if all checks pass, False otherwise. reason can optionally store the first validation rule that failed. Handle fields missing from OCR_Result_Pass1 as isValid: False, reason: "Missing".
+OCR Pass 2: Secondary Extraction
+Action: Re-execute the exact same highest-accuracy OCR engine configuration on the exact same input_image used in Step 2. (Re-running ensures potential variations in OCR engine behavior, even if slight, are captured).
+Extraction: Repeat the extraction process as in Step 2.
+Initial Cleaning: Apply the exact same cleaning rules as in Step 2.
+Output: Store the results in a temporary structure: OCR_Result_Pass2.
+Validation Pass 2: Field-Level Check
+Action: Repeat the validation process exactly as described in Step 3, but using OCR_Result_Pass2 as input.
+Crucially Exclude: Again, do not perform MRZ cross-validation.
+Output: Store the validation outcomes in Validation_Status_Pass2 (using the same format as Validation_Status_Pass1).
+Field-Level Consolidation based on Validation Status
+Action: Create the primary consolidated data set, Consolidated_Data, and a corresponding status tracker, Consolidated_Status. Iterate through all target JSON fields defined in the Master Prompt. For each field_name:
+Retrieve value1 from OCR_Result_Pass1 and status1 from Validation_Status_Pass1.
+Retrieve value2 from OCR_Result_Pass2 and status2 from Validation_Status_Pass2.
+Apply Consolidation Logic:
+Case 1: Pass 1 Valid, Pass 2 Invalid:
+Consolidated_Data[field_name] = value1
+Consolidated_Status[field_name] = { isValid: True, source: 'Pass1', needs_review: False }
+Case 2: Pass 1 Invalid, Pass 2 Valid:
+Consolidated_Data[field_name] = value2
+Consolidated_Status[field_name] = { isValid: True, source: 'Pass2', needs_review: False }
+Case 3: Both Passes Valid:
+Consolidated_Data[field_name] = value1 (Prioritize Pass 1 result)
+Consolidated_Status[field_name] = { isValid: True, source: 'Pass1 (Both Valid)', needs_review: False }
+(Optional Refinement: If value1 == value2, mark as higher confidence).
+Case 4: Both Passes Invalid (or Missing):
+Consolidated_Data[field_name] = value1 (Tentatively use Pass 1, even if invalid or null/missing)
+Consolidated_Status[field_name] = { isValid: False, source: 'Pass1 (Both Invalid)', needs_review: True, reason1: status1.reason, reason2: status2.reason } (Store reasons for potential later use/debugging).
+Output: Consolidated_Data (dictionary of field names to chosen values) and Consolidated_Status (dictionary tracking validity, source, and review need for each field).
+
+6.  **MRZ Extraction & Validation:**
+    *   Extract `mrzLine1` and `mrzLine2` from the best available OCR result (e.g., Pass 1, or whichever pass yielded clearer MRZ lines if discernible).
+    *   Parse and validate the MRZ fields: `mrzPassportNumber`, `mrzDateOfBirth`, `mrzDateOfExpiry`, `mrzSex`, `mrzSurname`, `mrzGivenNames` according to ICAO 9303 and any specific nationality rules.
+
+7.  **Final Cross-Validation & Reconciliation (using `Data_Consolidated` and MRZ):**
+    *   Now, apply the critical comparisons between the consolidated visual zone data (`Data_Consolidated`) and the validated MRZ data:
+        *   **Priority Rule:** For fields present in both zones (`number`, `country`, `surname`, `name`, `gender`, `birth date`, `expiry date`), if the consolidated OCR value *and* the MRZ-derived value are *both valid* but *differ*, **the validated MRZ value takes precedence** and overwrites the value in `Data_Consolidated`.
+        *   **Correction Rule:** If the consolidated OCR value for an overlapping field is *invalid* (i.e., both Pass 1 and Pass 2 failed initial validation), but the corresponding MRZ value *is* valid, use the valid MRZ value to correct the field in `Data_Consolidated`.
+        *   **Issue Date Fidelity:** Re-confirm that the `issue date` in `Data_Consolidated` originated *only* from its designated OCR field (as determined in Step 5). If it failed validation in both passes, it remains invalid unless corrected by a *different* rule (which shouldn't happen for `issue date`). It cannot be filled from MRZ.
+        *   **Apply Final Cleaning:** Perform final normalization like diacritic removal and special character replacement (`-`, `'` -> space) on name fields *after* reconciliation.
+
+8.  **Date Sanity Check:**
+    *   Verify the logical order in `Data_Consolidated`: `birth date` <= `issue date` < `expiry date`.
+    *   If this check fails, prioritize keeping the MRZ dates (if valid) and set the conflicting OCR-only date (`issue date`) to `""` if it's the definite source of the conflict and couldn't be validated.
+
+9.  **Final JSON Construction:**
+    *   Assemble the final JSON object using the values from `Data_Consolidated` after all validation, reconciliation, and sanity checks.
+    *   **Invalid/Missing Data:** Any field that remains invalid after all steps **must** have its value set to `""`. This includes fields where the primary OCR source was unusable in both passes and no valid MRZ correction was applicable.
+    *   **Structure and Order:** Ensure the output strictly adheres to the specified JSON key order and structure.
+
+10. **Return Output:** Return *only* the final, validated JSON object.
+
 
 
 

@@ -12,7 +12,6 @@ load_dotenv()
 
 LANGSMITH_API_KEY = os.getenv("LANGSMITH_API_KEY")
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
-# DATASET_NAME = "test"
 DATASET_NAME = "Passport Images - ETH"
 PROJECT_NAME = f"Passport Extraction {random.randint(1, 1000)}{random.randint(1, 1000)}"
 IMAGE_PATH = "filipina_yes"
