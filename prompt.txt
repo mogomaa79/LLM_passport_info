@@ -56,7 +56,7 @@ country – ISO 3166‑1 alpha‑3 code from OCR or MRZ.
 name – given names (English): replace “‑” with space, remove apostrophes, strip diacritics.
 
 
-surname – family name (English): same cleaning as name. Compare with mrzSurname extracted from MRZ Code. If different, ALWAYS use mrzSurname.  Make sure to follow the following rules as well:
+surname – family name (English): Extract from OCR visual zone. Clean this candidate (replace “‑” with space, remove apostrophes, strip diacritics). Also extract and clean `mrzSurname` from MRZ Line 1 (positions 6 to first <<, replace < with space). **CRITICAL:** Compare the cleaned OCR candidate with the cleaned `mrzSurname`. **If the `mrzSurname` is valid and differs from the cleaned OCR surname, you MUST use the `mrzSurname` value for the final `surname` field.** If OCR is unreadable/missing, use `mrzSurname`. Apply nationality-specific rules (like removing "ETH" for Ethiopia) **after** selecting the source (OCR or MRZ) but **before** outputting the final value. Follow rules for non-Latin characters and special characters:
 1. Translate Non-Latin Characters to English:
 
 
@@ -224,7 +224,7 @@ LAUA-AN ANTIQUE → LAUA AN ANTIQUE (Correct "‑" to space).
 
 DAVAD CITY → DAVAO CITY (Correct OCR error).
 
-birth date – DD/MM/YYYY; parse OCR and cross‑check mrzDateOfBirth.
+birth date – DD/MM/YYYY: parse OCR (`original birth date`) and cross‑check `mrzDateOfBirth`. **VALIDATION:** If both OCR and MRZ yield valid dates (DD/MM/YYYY format) but they differ, **the `mrzDateOfBirth` MUST BE USED for the final `birth date` field.** If the OCR date is invalid or missing, and the `mrzDateOfBirth` is valid, use `mrzDateOfBirth`. Ensure final output is DD/MM/YYYY.
 
 
 Document chronology
@@ -238,7 +238,7 @@ Contextual interpretation of a clearly legible two-digit year (YY) to determine 
 The final validated value (if readable) must be formatted as DD/MM/YYYY and must logically precede the expiry date (if both are present and valid).
 
 
-expiry date – DD/MM/YYYY; cross‑check mrzDateOfExpiry.
+expiry date – DD/MM/YYYY; parse OCR (`original expiry date`) and cross‑check `mrzDateOfExpiry`. **VALIDATION:** If both OCR and MRZ yield valid dates (DD/MM/YYYY format) but they differ, **the `mrzDateOfExpiry` MUST BE USED for the final `expiry date` field.** If the OCR date is invalid or missing, and the `mrzDateOfExpiry` is valid, use `mrzDateOfExpiry`. Ensure final output is DD/MM/YYYY and is logically after `issue date`.
 Example 1:
 Issue Date: 01/01/2020
 
@@ -322,7 +322,9 @@ MRZ‑derived
 mrzLine1, mrzLine2 – full lines with < padding.
 
 
-mrzDateOfBirth, mrzDateOfExpiry – parsed from MRZ and converted from YYMMDD to DD/MM/YYYY. mrzSex, mrzSurname, mrzGivenNames – parsed from the MRZ Line 1 substring found after the first << and before the next < or the end of the line before triple angle brackets <<<. Convert any single < characters within this substring to spaces, then strip leading/trailing spaces and collapse consecutive spaces.
+mrzDateOfBirth, mrzDateOfExpiry – **Strictly parse from `mrzLine2`.**
+ *   **`mrzDateOfBirth`:** Located at character positions 14-19 (YYMMDD format). Map to DD/MM/YYYY
+ *   **`mrzDateOfExpiry`:** Located at character positions 22-27 (YYMMDD format). Map to DD/MM/YYYY
 MRZ Line 1 may contain ISO 3166‑1 alpha‑3 code before given names and surname:
 P<ETHERKO<<....      → mrzSurname: “ERKO” not “ETHERKO”
 P<ETHALEM<<HANA<...    → mrzSurname: “ALEM” not “ETHALEM”
@@ -1046,9 +1048,24 @@ Replace apostrophes ' and hyphens - with spaces, then collapse multiple spaces.
 
 
 Do not change letter order or add diacritics.
+ Fields first name and middle name 
+PUT THE ENTIRE GIVEN NAME IN FIRST NAME
+Middle name is always empty “”
+	Example:
+Given Names:  BEATRICE NTHENYA
+First Name →  BEATRICE NTHENYA (Keep all given names) ✅
+Middle Name → “” ✅
+Example:
+	Given Names: GLADYS AOKO
+	First name →GLADYS AOKO (Keep all given names) ✅
+	Middle Name → “”✅
+3. Compare with MRZ given names. If it differs, always prioritize MRZ given names.
+Example:
+Given Names (OCR): KEMGLADYS AOKO
+MRZ Given Names: GLADYS AOKO
 
 
-
+First Name: GLADYS AOKO ✅
 ## 7  MRZ Reference Formats (read‑only, for validation)
 mrzLine1 (Kenyan passports)
 
@@ -2760,7 +2777,4 @@ Output: Consolidated_Data (dictionary of field names to chosen values) and Conso
     *   **Structure and Order:** Ensure the output strictly adheres to the specified JSON key order and structure.
 
 10. **Return Output:** Return *only* the final, validated JSON object.
-
-
-
 

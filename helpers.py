@@ -34,10 +34,13 @@ def edit_agent_value(value, field):
         return pd.to_datetime(value).strftime('%d/%m/%Y')
 
     elif str(field).strip().upper() == "NATIONALITY":
-        return "ETH"
+        return "KEN"
     
     elif str(field).strip().upper() == "COUNTRY OF ISSUE" or str(field).strip().upper() == "PASSPORT PLACE(EN)":
         return value.upper()
+    
+    elif str(field).strip().upper() == "BIRTH PLACE":
+        return value.upper().split(", KEN")[0].split("KEN")[0].strip()
 
     elif str(field).strip().upper() == "GENDER":
         return value.upper()[0]
@@ -124,7 +127,7 @@ def upload_results(csv_file_path: str, spreadsheet_id: str, credentials_path: st
 
     headers = filtered_df.columns.tolist()
     data = filtered_df.values.tolist()
-    data.insert(0, headers)  # Insert headers at the top of the data
+
     worksheet = gc.open_by_key(spreadsheet_id).sheet1
     worksheet.clear()
 
