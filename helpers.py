@@ -118,6 +118,8 @@ def upload_results(csv_file_path: str, spreadsheet_id: str, credentials_path: st
     filtered_df["Edited Agent Value"] = filtered_df.apply(lambda row: edit_agent_value(row['Agent Value'], row['Modified Field']), axis=1)
     filtered_df["Similarity"] = filtered_df.apply(lambda row: row['Gemini Value'] == row['Edited Agent Value'], axis=1)
     filtered_df = filtered_df[['Maid’s ID', 'Modified Field', 'Edited Agent Value', 'Gemini Value', 'Similarity', 'Agent Value', 'OCR Value']]
+
+    filtered_df['Maid’s ID'] = filtered_df['Maid’s ID'].astype(int)
     filtered_df.to_csv("results/filtered_df.csv", index=False)
 
     headers = filtered_df.columns.tolist()
@@ -125,7 +127,12 @@ def upload_results(csv_file_path: str, spreadsheet_id: str, credentials_path: st
     data.insert(0, headers)  # Insert headers at the top of the data
     worksheet = gc.open_by_key(spreadsheet_id).sheet1
     worksheet.clear()
-    worksheet.append_rows(data)
+
+    data_to_upload = [headers] + [[str(item) for item in row] for row in data]
+
+    worksheet.update('A1', data_to_upload)
+    worksheet.freeze(rows=1)
+
 
 def save_results(results, results_path):
     df = pd.DataFrame(results.to_pandas())

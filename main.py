@@ -19,7 +19,7 @@ MODEL = "gemini-2.0-flash"
 GOOGLE_SHEETS_CREDENTIALS_PATH = "credentials.json"
 SPREADSHEET_ID = "10w_D5gaP7bQNvYUlXDu_7pzZJqqfe5WlhkX-qBO3Ns8"
 PROJECT_NAME = f"{DATASET_NAME} - {MODEL} - {random.randint(0, 100)}"
-ADD_DATA = True
+ADD_DATA = False
 
 def main():
     client = Client(api_key=LANGSMITH_API_KEY)
