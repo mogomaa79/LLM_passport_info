@@ -12,8 +12,7 @@ load_dotenv()
 
 LANGSMITH_API_KEY = os.getenv("LANGSMITH_API_KEY")
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
-# DATASET_NAME = "Passport Images - ETH"
-DATASET_NAME = "test"
+DATASET_NAME = "Passport Images - ETH"
 IMAGE_PATH = "Copy of ethiopian/ethiopian_yes"
 PROMPT_PATH = "prompt.txt"
 MODEL = "gemini-2.0-flash"
