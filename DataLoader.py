@@ -56,20 +56,30 @@ class DataLoader:
                  return
 
             image_files = [f for f in os.listdir(self.image_path) if f.lower().endswith((".png", ".jpg", ".jpeg"))]
+            image_dict = {}
+            for img in image_files:
+                image_id = img[:5]
+                if image_id not in image_dict:
+                    image_dict[image_id] = ["", ""]
+                if "_2" in img:
+                    image_dict[image_id][1] = img
+                else:
+                    image_dict[image_id][0] = img
 
             print(f"Preparing {len(image_files)} examples from {self.image_path}...")
 
-            for img_filename in image_files:
-                image_full_path = os.path.join(self.image_path, img_filename)
-                reference_output = None # Assuming no reference output for now
+            for image_id, imgs in image_dict.items():
+                reference_output = None 
+                image_data_uri = ""
+                for img in imgs:
+                    image_full_path = os.path.join(self.image_path, img)
 
-                # --- Modification Start ---
-                # Extract filename without extension
-                filename_without_extension, _ = os.path.splitext(img_filename)
-                example_id = filename_without_extension # Use the filename without extension as the id
-                # --- Modification End ---
-
-                image_data_uri = image_to_base64(image_full_path)
+                    encoded_image = image_to_base64(image_full_path)
+                    if encoded_image:
+                      image_data_uri += encoded_image + "\n"
+                    else:
+                      image_data_uri
+                
                 if not image_data_uri:
                     print(f"Skipping example due to image processing error for: {image_full_path}")
                     continue
@@ -84,17 +94,15 @@ class DataLoader:
 
                 example_inputs = {
                     "multimodal_prompt": multimodal_content,
-                    "image_id": example_id # Add image_id directly to inputs
+                    "image_id": image_id 
                 }
 
-                # --- Modification Start ---
                 self.examples.append(
                     {
                         "inputs": example_inputs,
                         "outputs": {"expected_json": reference_output} if reference_output is not None else None,
                     }
                 )
-                # --- Modification End ---
 
             print(f"Prepared {len(self.examples)} examples.")
 

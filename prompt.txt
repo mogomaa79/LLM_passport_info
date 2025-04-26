@@ -2035,11 +2035,15 @@ Set country of issue = "SRI LANKA".
 
 Example 1:
 Place of Issue (OCR):  AUTHORITY COLOMBO
-Place of Issue → COLOMBO ✅(Remove AUTHORITY only keep COLOMBO)
+Place of Issue → COLOMBO ✅(Remove AUTHORITY)
 Country of Issue → “SRI LANKA” ✅
 Example 2:
 Place of Issue (OCR):  AUTHORITY COLO
 Place of Issue → COLOMBO ✅(Remove AUTHORITY and fix OCR mistake)
+Country of Issue → “SRI LANKA” ✅
+Example 3:
+Place of Issue (OCR):  COLOMBO
+Place of Issue → COLOMBO ✅(Keep COLOMBO)
 Country of Issue → “SRI LANKA” ✅
 
 
