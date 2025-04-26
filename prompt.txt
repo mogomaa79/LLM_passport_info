@@ -979,7 +979,7 @@ Examples:
 NYAMACHE, KEN → NYAMACHE
 NAIROBI,KEN → NAIROBI
 MOMBASA ,KEN → MOMBASA
-BUTERE, KEN → BUTERE
+BUTERE KEN → BUTERE
 SIAYA,KEN → SIAYA 
 MERU SOUTH KEN → MERU SOUTH
 
@@ -1394,6 +1394,7 @@ Do not remove these letters if they are embedded inside a legitimate place name.
 
 
 Example: PLACHOWK → keep as PLACHOWK (no change).
+Remove all special characters like “(“, “)”, “\”, etc. and keep everything as is. Remove commas; translate non‑Latin to English; replace “‑”, “/”, “( )” with space; collapse duplicates in parentheses; auto‑correct clear OCR variants of MANILA; never add spaces if none existed. **Specifically, ensure that all parentheses are removed and the content within them is retained, with spaces replacing the parentheses.**
 
 
 #### 1.3 Worked Examples (keep exactly; add more when needed)
@@ -1419,6 +1420,14 @@ DHARAN PLACHOWK     → DHARAN PLACHOWK (suffix letters inside name, keep)
 
 
 CHITWAN  NPL        → CHITWAN (trailing spaces ignored)
+NAWALPARASI (EAST)  → NAWALPARASI EAST
+## 2  Fields place of issue and country of issue — Nepali Passports
+If the text in Place of Issue begins with “MOFA”, then place of issue is “MOFA” and country of issue is “NEPAL”
+#### 2.1 Worked Examples 
+MOFA     → place of issue: MOFA, country of issue: NEPAL
+
+
+MOFA, DEPARTMENT OF PASSPORT  → place of issue: MOFA, country of issue: NEPAL
 
 
 
@@ -1944,9 +1953,6 @@ Only remove the literal suffix PAK from place of birth; do not touch other compo
 
 Purge intermediary strings and logs after processing to satisfy GDPR.
 
-
-
-
 CASE 11: Sri Lanka – LKA – Sri Lankan
 ### Scope
  Activate this section only when mrzLine1 characters 3‑5 equal LKA or the previously extracted country field already equals LKA.
@@ -1973,8 +1979,6 @@ Do not translate, reorder, or remove any words.
 Raw MRZ Line 1:
 
  P<LKAPORAMA<MANNAGE<<MADUSHANI<KAUSHALYA<S<J
-
-
 Substring before << = PORAMA<MANNAGE
 
 
@@ -1982,9 +1986,14 @@ Convert < to space → PORAMA MANNAGE
 
 
 surname = PORAMA MANNAGE
+ P<LKAMADIGAPOLA<LEKAMGE<<NUSHALI<SUJANTHA<..
+Substring before << = MADIGAPOLA<LEKAMGE
 
 
-(If additional given examples are encountered, append them below to keep the rule set comprehensive.)
+Convert < to space → MADIGAPOLA LEKAMGE
+
+
+surname = MADIGAPOLA LEKAMGE
 
 ### Compliance Reminder
 Only transform single < characters into spaces; all other formatting stays intact.
@@ -1995,7 +2004,28 @@ Upper‑casing or global space‑normalisation (if any) should follow the master
 
 Purge temporary parsing strings and logs after processing to satisfy GDPR.
 
+Fields first name and middle name 
+PUT THE ENTIRE GIVEN NAME IN FIRST NAME
+Middle name is always empty “”
+	Example:
+Given Names:  DEHEMI SANJANA DASANAYAKA
+First Name → DEHEMI SANJANA DASANAYAKA (Keep all given names) ✅
+Middle Name → “” ✅
+Example:
+	Given Names: NUSHALI SUJANTHA FONSEKA
+	First name →NUSHALI SUJANTHA FONSEKA (Keep all given names) ✅
+	Middle Name → “”✅
+3. Compare with MRZ given names. If it differs, always prioritize MRZ given names.
+Example:
+Given Names (OCR): KEMGLADYS AOKO
+MRZ Given Names: WIKRAMA HENALAGE
 
+
+First Name: GLADYS AOKO ✅
+## 2  Field country of issue and place of issue
+If place of issue is  "AUTHORITY COLOMBO", then
+Set place of issue = “COLOMBO” 
+Set country of issue = "SRI LANKA".
 
 
 CASE 12: Brazil – BRA - Brazilian

@@ -12,8 +12,8 @@ load_dotenv()
 
 LANGSMITH_API_KEY = os.getenv("LANGSMITH_API_KEY")
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
-DATASET_NAME = "NPL - Images"
-IMAGE_PATH = "data/nepali/nepali_yes"
+DATASET_NAME = "LKA - Images"
+IMAGE_PATH = "data/sri_lankan/sri_lankan_yes"
 PROMPT_PATH = "prompt.txt"
 MODEL = "gemini-2.0-flash"
 GOOGLE_SHEETS_CREDENTIALS_PATH = "credentials.json"
