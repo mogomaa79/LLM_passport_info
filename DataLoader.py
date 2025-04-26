@@ -1,18 +1,13 @@
 import os
 import traceback
-from helpers import image_to_base64, PassportExtraction
-from langchain_core.output_parsers import JsonOutputParser
-
+from helpers import image_to_base64
 class DataLoader:
-    def __init__(self, client, dataset_name, prompt_path, image_path):
+    def __init__(self, client, dataset_name, image_path):
         self.client = client
         self.dataset_name = dataset_name
-        self.json_parser = None # Will be set in load_prompt
         self.dataset = self.get_dataset()
-        self.prompt_path = prompt_path
-        self.prompt = self.load_prompt()
         self.image_path = image_path
-        self.examples = [] # List to hold example data before upload
+        self.examples = []
 
     def get_dataset(self):
         try:
@@ -25,24 +20,6 @@ class DataLoader:
                 description="Dataset containing passport images and extraction prompts for Gemini evaluation.",
             )
         return dataset
-
-    def load_prompt(self):
-        try:
-            with open(self.prompt_path, "r", encoding="utf-8") as f:
-                base_prompt_text = f.read()
-
-                # Initialize json_parser here
-                self.json_parser = JsonOutputParser(pydantic_object=PassportExtraction)
-                format_instructions = self.json_parser.get_format_instructions()
-
-                prompt_text = f"{base_prompt_text}\n\n{format_instructions}"
-            return prompt_text
-        except FileNotFoundError:
-            print(f"Error: Prompt file not found at {self.prompt_path}")
-            raise
-        except Exception as e:
-            print(f"Error loading prompt file: {e}")
-            raise
 
     def load_examples(self):
         """
@@ -69,32 +46,27 @@ class DataLoader:
             print(f"Preparing {len(image_files)} examples from {self.image_path}...")
 
             for image_id, imgs in image_dict.items():
-                reference_output = None 
-                image_data_uri = ""
+                reference_output = None
+                multimodal_content = []
+
                 for img in imgs:
                     image_full_path = os.path.join(self.image_path, img)
-
-                    encoded_image = image_to_base64(image_full_path)
-                    if encoded_image:
-                      image_data_uri += encoded_image + "\n"
-                    else:
-                      image_data_uri
-                
-                if not image_data_uri:
-                    print(f"Skipping example due to image processing error for: {image_full_path}")
-                    continue
-
-                multimodal_content = [
-                    # {"type": "text", "text": self.prompt},
-                    {
-                        "type": "image_url",
-                        "image_url": {"url": image_data_uri},
-                    },
-                ]
+                    image_data_uri = image_to_base64(image_full_path)
+ 
+                    if not image_data_uri:
+                        print(f"Skipping example due to image processing error for: {image_full_path}")
+                        continue
+                    
+                    multimodal_content.append(
+                        {
+                            "type": "image_url",
+                            "image_url": {"url": image_data_uri},
+                        },
+                    )
 
                 example_inputs = {
                     "multimodal_prompt": multimodal_content,
-                    "image_id": image_id 
+                    "image_id": image_id
                 }
 
                 self.examples.append(
@@ -144,8 +116,6 @@ class DataLoader:
                 traceback.print_exc()
         else:
             print("No examples loaded or prepared. Skipping data upload.")
-
-
 
     def run(self):
         """

@@ -32,7 +32,6 @@ def main():
     dataloader = DataLoader(
         client=client,
         dataset_name=DATASET_NAME,
-        prompt_path=PROMPT_PATH,
         image_path=IMAGE_PATH,
     )
 
