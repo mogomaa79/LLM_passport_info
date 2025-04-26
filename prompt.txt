@@ -1975,10 +1975,7 @@ Preserve the resulting string verbatim as surname.
 Do not translate, reorder, or remove any words.
 
 
-##### Example (provided)
-Raw MRZ Line 1:
-
- P<LKAPORAMA<MANNAGE<<MADUSHANI<KAUSHALYA<S<J
+Example 1
 Substring before << = PORAMA<MANNAGE
 
 
@@ -1986,7 +1983,15 @@ Convert < to space → PORAMA MANNAGE
 
 
 surname = PORAMA MANNAGE
- P<LKAMADIGAPOLA<LEKAMGE<<NUSHALI<SUJANTHA<..
+Example 2
+Substring before << = WIKRAMA<HENALAGE
+
+
+Convert < to space → WIKRAMA HENALAGE
+
+
+surname = WIKRAMA HENALAGE
+Example 3
 Substring before << = MADIGAPOLA<LEKAMGE
 
 
@@ -2015,17 +2020,27 @@ Example:
 	Given Names: NUSHALI SUJANTHA FONSEKA
 	First name →NUSHALI SUJANTHA FONSEKA (Keep all given names) ✅
 	Middle Name → “”✅
-3. Compare with MRZ given names. If it differs, always prioritize MRZ given names.
+3. Compare with MRZ given names. If it differs, check if OCR is much longer than extracted MRZ, if so keep OCR because some names were too long to fit in MRZ. Just check that the equivalent parts match.
 Example:
-Given Names (OCR): KEMGLADYS AOKO
-MRZ Given Names: WIKRAMA HENALAGE
+Given Names (OCR): MADUSHANI KAUSHALYA SANJEEWAN JAYATHISSA
+MRZ Given Names: MADUSHANI KAUSHALYA
 
 
-First Name: GLADYS AOKO ✅
+First Name: MADUSHANI KAUSHALYA SANJEEWAN JAYATHISSA ✅
 ## 2  Field country of issue and place of issue
-If place of issue is  "AUTHORITY COLOMBO", then
-Set place of issue = “COLOMBO” 
+If place of issue is exactly or looks like  "AUTHORITY COLOMBO", then
+Set place of issue = “COLOMBO”
 Set country of issue = "SRI LANKA".
+
+
+Example 1:
+Place of Issue (OCR):  AUTHORITY COLOMBO
+Place of Issue → COLOMBO ✅(Remove AUTHORITY only keep COLOMBO)
+Country of Issue → “SRI LANKA” ✅
+Example 2:
+Place of Issue (OCR):  AUTHORITY COLO
+Place of Issue → COLOMBO ✅(Remove AUTHORITY and fix OCR mistake)
+Country of Issue → “SRI LANKA” ✅
 
 
 CASE 12: Brazil – BRA - Brazilian
