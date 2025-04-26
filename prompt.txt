@@ -970,19 +970,18 @@ Always set to the ISO‑alpha‑3 code KEN.
 
 
 ## 3  Field place of birth
-If the string contains “, KEN” (with or without spaces or minor OCR noise), keep only the substring before the comma.
+If the string contains “, KEN” or “KEN” (with or without spaces or minor OCR noise), keep only the substring before the comma.
 
 
 Examples:
 
 
-NYAMACHE, KEN   → NYAMACHE
-
-
-NAIROBI,KEN     → NAIROBI
-
-
-MOMBASA ,KEN    → MOMBASA
+NYAMACHE, KEN → NYAMACHE
+NAIROBI,KEN → NAIROBI
+MOMBASA ,KEN → MOMBASA
+BUTERE, KEN → BUTERE
+SIAYA,KEN → SIAYA 
+MERU SOUTH KEN → MERU SOUTH
 
 
 Remove stray commas and double‑spaces, but do not translate or expand the place name.

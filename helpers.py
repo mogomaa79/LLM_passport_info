@@ -34,13 +34,10 @@ def edit_agent_value(value, field):
         return pd.to_datetime(value).strftime('%d/%m/%Y')
 
     elif str(field).strip().upper() == "NATIONALITY":
-        return "KEN"
+        return "NPL"
     
     elif str(field).strip().upper() == "COUNTRY OF ISSUE" or str(field).strip().upper() == "PASSPORT PLACE(EN)":
         return value.upper()
-    
-    elif str(field).strip().upper() == "BIRTH PLACE":
-        return value.upper().split(", KEN")[0].split("KEN")[0].strip()
 
     elif str(field).strip().upper() == "GENDER":
         return value.upper()[0]
