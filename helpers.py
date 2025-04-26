@@ -34,7 +34,7 @@ def edit_agent_value(value, field):
         return pd.to_datetime(value).strftime('%d/%m/%Y')
 
     elif str(field).strip().upper() == "NATIONALITY":
-        return "LKA"
+        return "IND"
     
     elif str(field).strip().upper() == "COUNTRY OF ISSUE" or str(field).strip().upper() == "PASSPORT PLACE(EN)" or str(field).strip().upper() == "BIRTH PLACE":
         return value.upper()
@@ -78,14 +78,29 @@ def upload_results(csv_file_path: str, spreadsheet_id: str, credentials_path: st
     all_df = all_df.ffill()
     merged_df = pd.merge(df, all_df, left_on="inputs.image_id", right_on="Maid’s ID", how="left")
 
+    # google_sheet_columns = {
+    #     "Birth Place": "outputs.place of birth",
+    #     "Birthdate": "outputs.birth date",
+    #     "Country of Issue": "outputs.country of issue",
+    #     "First Name": "outputs.name",
+    #     "Gender": "outputs.gender",
+    #     "Last Name": "outputs.surname",
+    #     "Middle Name": "outputs.middle name",
+    #     "Mother Name": "outputs.mother name",
+    #     "Nationality": "outputs.country",
+    #     "Passport Expiry Date": "outputs.expiry date",
+    #     "Passport Issue Date": "outputs.issue date",
+    #     "Passport Place(EN)": "outputs.place of issue",
+    #     "Passport ID": "outputs.number",
+    # }
     google_sheet_columns = {
         "Birth Place": "outputs.place of birth",
         "Birthdate": "outputs.birth date",
         "Country of Issue": "outputs.country of issue",
         "First Name": "outputs.name",
         "Gender": "outputs.gender",
-        "Last Name": "outputs.surname",
-        "Middle Name": "outputs.middle name",
+        "Last Name": "outputs.father name",
+        "Middle Name": "outputs.surname",
         "Mother Name": "outputs.mother name",
         "Nationality": "outputs.country",
         "Passport Expiry Date": "outputs.expiry date",
@@ -154,9 +169,7 @@ def image_to_base64(image_path, max_size=(1024, 1024), quality=90):
 
             # If the image is in a format that can support transparency, handle it
             if img.mode in ("RGBA", "P"):
-                img = img.convert("RGB")  # Convert to RGB for JPEG compatibility
-
-            # Save the compressed image directly into the buffer
+                img = img.convert("RGB") 
             img.save(buffered, format="JPEG", quality=quality)  # Adjust quality for compression
             img_str = base64.b64encode(buffered.getvalue()).decode("utf-8")
             return f"data:image/jpeg;base64,{img_str}"

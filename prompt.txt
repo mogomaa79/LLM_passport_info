@@ -2483,8 +2483,66 @@ Example
 
 
 Place of Issue: PCG HONG KONG → country of issue = Hong Kong
-
-
+CASE 11: India – IND – Indian
+Scope:
+Activate this section only when mrzLine1 characters 3-5 equal "IND" or the previously extracted country field already equals "IND".
+These rules override the master prompt solely for the surname,firstName, middleName, country of issue, and place of issue fields. All other fields continue to follow the master rules.
+1. Field Surname — Indian Passports
+MRZ Extraction:
+Locate mrzLine1.
+Read every character starting at position 6 (the first character after the country code) up to—but not including—the first double-arrow separator <<.
+Within that substring, replace each single arrow < with a space.
+Collapse multiple spaces to one.
+Preserve the resulting string verbatim as surname. If the resulting string is empty, then the surname is empty "".
+Examples:
+Substring before << = SHABNAM<BEGAM
+Convert < to space → SHABNAM BEGAM
+surname = SHABNAM BEGAM
+Substring before << =
+Convert < to space →
+surname = ""
+Compliance Reminder:
+Only transform single < characters into spaces; all other formatting stays intact.
+Upper-casing or global space-normalization (if any) should follow the master prompt’s convention.
+Purge temporary parsing strings and logs after processing to satisfy GDPR.
+2. Fields First Name and Middle Name
+PUT THE ENTIRE GIVEN NAME IN FIRST NAME AND MIDDLE NAME IS EMPTY “”
+Example:
+Given Names: DEHEMI SANJANA DASANAYAKA
+First Name → DEHEMI SANJANA DASANAYAKA (Keep all given names) ✅
+Middle Name → “” ✅
+Example:
+Given Names: NUSHALI SUJANTHA FONSEKA
+First name →NUSHALI SUJANTHA FONSEKA (Keep all given names) ✅
+Middle Name → “”✅
+Compare with MRZ given names. If it differs, check if OCR is much longer than extracted MRZ, if so keep OCR because some names were too long to fit in MRZ. Just check that the equivalent parts match.
+Example:
+Given Names (OCR): MADUSHANI KAUSHALYA SANJEEWAN JAYATHISSA
+MRZ Given Names: MADUSHANI KAUSHALYA
+First Name: MADUSHANI KAUSHALYA SANJEEWAN JAYATHISSA ✅
+3. Fields Country of Issue and Place of Issue
+If place of issue is available, use the value found on the passport (e.g., "LUCKNOW"). If place of issue is not available, set both to empty "". The country of issue should be the country that contains the place of issue.
+Example 1:
+Place of Issue (OCR): LUCKNOW
+Place of Issue → LUCKNOW ✅
+Country of Issue → “INDIA” ✅
+Example 2:
+Place of Issue (OCR): (blank/not found)
+Place of Issue → "" ✅
+Country of Issue → “” ✅
+Example 3:
+Place of Issue (OCR): MUSKAT
+Place of Issue → "MUSKAT" ✅
+Country of Issue → “OMAN” ✅ (Because MUSAKT is in OMAN)
+Example 4:
+Place of Issue (OCR): DOHA
+Place of Issue → "DOHA" ✅
+Country of Issue → “QATAR” ✅ (Because DOHA is in QATAR)
+4. Fields Mother’s Name and Father’s Name
+Extract both of them from the last page of the passport.
+Father name is under “Name of father/Legal Guardian”
+Mother name is under “Name of Mother”
+They are never empty. Make sure to extract both names entirely  and place them accordingly
 User Message:
 
 Please extract and return the data in exactly the JSON structure below (no extra keys, no extra text). Notice that we've added the new "original ..." fields for the five variables mentioned in Additional Requirement:
