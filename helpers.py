@@ -30,20 +30,16 @@ def edit_agent_value(value, field):
     
     # Check if it's a valid date in the format YYYY-MM-DD
     if pd.Series(value).str.match(r"^\d{4}-\d{2}-\d{2}$").any() and pd.to_datetime(value, errors='coerce') is not pd.NaT:
-        # Convert to dd/mm/yyyy format
         return pd.to_datetime(value).strftime('%d/%m/%Y')
 
     elif str(field).strip().upper() == "NATIONALITY":
         return "IND"
-    
-    elif str(field).strip().upper() == "COUNTRY OF ISSUE" or str(field).strip().upper() == "PASSPORT PLACE(EN)" or str(field).strip().upper() == "BIRTH PLACE":
-        return value.upper()
 
     elif str(field).strip().upper() == "GENDER":
         return value.upper()[0]
 
     else:
-        return value
+        return value.upper()
 
 
 def upload_results(csv_file_path: str, spreadsheet_id: str, credentials_path: str):
@@ -188,3 +184,34 @@ def map_input_to_messages_lambda(inputs: dict):
     ]
     
     return messages
+
+
+class PassportExtraction(BaseModel):
+    """Detailed passport information extracted from an image."""
+    original_number: str = Field(alias="original number")
+    number: str
+    original_country: str = Field(alias="original country")
+    country: str
+    name: str
+    surname: str
+    middle_name: str = Field(alias="middle name")
+    original_gender: str = Field(alias="original gender")
+    gender: str
+    place_of_birth: str = Field(alias="place of birth")
+    original_birth_date: str = Field(alias="original birth date")
+    birth_date: str = Field(alias="birth date")
+    issue_date: str = Field(alias="issue date")
+    original_expiry_date: str = Field(alias="original expiry date")
+    expiry_date: str = Field(alias="expiry date")
+    mother_name: str = Field(alias="mother name")
+    father_name: str = Field(alias="father name")
+    place_of_issue: str = Field(alias="place of issue")
+    country_of_issue: str = Field(alias="country of issue")
+    mrzLine1: str
+    mrzLine2: str
+    mrzPassportNumber: str
+    mrzDateOfBirth: str
+    mrzDateOfExpiry: str
+    mrzSex: str
+    mrzSurname: str
+    mrzGivenNames: str

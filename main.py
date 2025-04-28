@@ -3,16 +3,17 @@ import random
 import os
 from dotenv import load_dotenv
 from DataLoader import DataLoader
-from helpers import map_input_to_messages_lambda, save_results, upload_results
+from helpers import map_input_to_messages_lambda, save_results, upload_results, PassportExtraction
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.runnables import RunnableLambda
 from langsmith import Client, evaluate
+from langchain_core.output_parsers import JsonOutputParser
 
 load_dotenv()
 
 LANGSMITH_API_KEY = os.getenv("LANGSMITH_API_KEY")
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
-DATASET_NAME = "test"
+DATASET_NAME = "India"
 IMAGE_PATH = "data/indian/indian_yes"
 PROMPT_PATH = "prompt.txt"
 MODEL = "gemini-2.0-flash"
@@ -29,17 +30,17 @@ def main():
         temperature=0.0,
         max_output_tokens=4096,
     )
-    dataloader = DataLoader(
-        client=client,
-        dataset_name=DATASET_NAME,
-        image_path=IMAGE_PATH,
-    )
 
-    json_parser = dataloader.json_parser
     runnable = RunnableLambda(map_input_to_messages_lambda)
     llm_retry = llm.with_retry(stop_after_attempt=5)
+    json_parser = JsonOutputParser(pydantic_object=PassportExtraction)
 
     if ADD_DATA:
+        dataloader = DataLoader(
+            client=client,
+            dataset_name=DATASET_NAME,
+            image_path=IMAGE_PATH,
+        )
         try:
             client = dataloader.run()
             print("Data loading completed.")
