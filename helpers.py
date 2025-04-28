@@ -26,7 +26,7 @@ except Exception as e:
     raise ValueError(f"Error reading prompt.txt: {e}")
 
 def edit_agent_value(value, field):
-    value = str(value).strip()
+    value = str(value).strip().upper()
     
     # Check if it's a valid date in the format YYYY-MM-DD
     if pd.Series(value).str.match(r"^\d{4}-\d{2}-\d{2}$").any() and pd.to_datetime(value, errors='coerce') is not pd.NaT:
@@ -34,12 +34,14 @@ def edit_agent_value(value, field):
 
     elif str(field).strip().upper() == "NATIONALITY":
         return "IND"
+    
+    elif str(field).strip().upper() == "MOTHER NAME":
+        return value.split()[0]
 
     elif str(field).strip().upper() == "GENDER":
-        return value.upper()[0]
+        return value[0]
 
-    else:
-        return value.upper()
+    return value
 
 
 def upload_results(csv_file_path: str, spreadsheet_id: str, credentials_path: str):

@@ -2491,6 +2491,8 @@ CASE 17: India – IND – Indian
  *   **Page 1 (Biographic Page):** Contains main identity details (Name, Surname, DOB, Passport No, Dates, MRZ, etc.).
  *   **Page 2 (Additional Info Page):** Contains parental names, spouse name, address, etc.
 
+**Critical Compliance Note:** Strict adherence to the specified extraction sources (Page 1 vs. Page 2) and label matching is paramount. **Prioritize OCR fidelity**, especially for `place of birth`, and rigorously apply the specific parsing rules for fields like `mother name`. Do not invent or substitute data based on external knowledge unless explicitly allowed for minor, high-confidence OCR corrections.
+
 ## 1. Field Surname — Indian Passports
 #### 1.1 Extraction Sources (Priority: OCR Visual Zone > MRZ)
  *   **OCR Candidate:** Extract the text directly associated with the "Surname" label on the **Page 1 (Biographic Page)**.
@@ -2505,28 +2507,20 @@ CASE 17: India – IND – Indian
  *   If the resulting string after the country code and before `<<` is empty, the surname is `""`.
 
 #### 1.3 Validation and Selection
- *   Prefer the cleaned OCR `Surname` value from Page 1 if it is present and readable.
+ *   Prefer the cleaned OCR `Surname` value from Page 1 if it is present and readable. **Do not override a valid OCR surname with MRZ spelling variations (Master Rule 11).**
  *   If the OCR `Surname` is missing or unreadable, use the cleaned `mrzSurname` derived from the MRZ Candidate following rule 1.2.
  *   Apply standard cleaning (remove diacritics, normalize spaces) as per master rules *after* selection.
 
 #### 1.4 Worked Examples
  *   **Page 1 OCR "Surname":** EKKA
  *   **MRZ Line 1:** `P<INDEKKA<<SUSHMITA<<<<<<<<<<<<<<<<<<<<<<<<<<<`
- *   **MRZ Surname Extraction:**
-     *   Start after `IND` (position 6).
-     *   Substring before `<<`: `EKKA`
-     *   Cleaned `mrzSurname`: `EKKA`
- *   **Result:** `surname` = "EKKA" (OCR is present and matches MRZ)
+ *   **MRZ Surname Extraction:** `EKKA` -> `mrzSurname` = "EKKA"
+ *   **Result:** `surname` = "EKKA"
 
- *   **Example (Hypothetical - Empty MRZ Surname):**
- *   **MRZ Line 1:** `P<IND<<SUSHMITA<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<`
- *   **MRZ Surname Extraction:** Substring before `<<` is empty. -> `mrzSurname` = ""
- *   **Result:** If OCR "Surname" was "EKKA", `surname` = "EKKA". If OCR was also blank/unreadable, `surname` = "".
-
- *   **Example (Hypothetical - MRZ with space):**
+ *   **Example (MRZ with space):**
  *   **MRZ Line 1:** `P<INDSHARMA<KUMAR<<AMIT<<<<<<<<<<<<<<<<<<<<<<<<`
- *   **MRZ Surname Extraction:** Substring = `SHARMA<KUMAR` -> `mrzSurname` = "SHARMA KUMAR"
- *   **Result:** If OCR "Surname" was "SHARMA KUMAR", `surname` = "SHARMA KUMAR". If OCR was unreadable, use MRZ -> `surname` = "SHARMA KUMAR".
+ *   **MRZ Surname Extraction:** `SHARMA<KUMAR` -> `mrzSurname` = "SHARMA KUMAR"
+ *   **Result:** If OCR "Surname" was "SHARMA KUMAR", `surname` = "SHARMA KUMAR". If OCR was "SHARMA KUMAR", `surname` = "SHARMA KUMAR". If OCR was unreadable, use MRZ -> `surname` = "SHARMA KUMAR".
 
 ## 2. Fields `name` (First Name) and `middle name` — Indian Passports
 #### 2.1 Extraction Source
@@ -2537,8 +2531,8 @@ CASE 17: India – IND – Indian
  *   The `middle name` field MUST **ALWAYS** be set to an empty string `""`.
 
 #### 2.3 Validation and Cleaning
- *   Compare the OCR `name` with `mrzGivenNames` (extracted from MRZ Line 1 between the first `<<` and the next `<` or end `<<<`). Follow master prompt Rule 6 for validation (prefer MRZ if valid and different, unless OCR is clearly more complete for very long names that might be truncated in MRZ).
- *   Apply standard cleaning (remove diacritics, normalize hyphens/apostrophes to space, trim spaces) as per master rules.
+ *   Compare the OCR `name` with `mrzGivenNames` (extracted from MRZ Line 1 between the first `<<` and the next `<` or end `<<<`). Follow master prompt **Rule 6** for validation (prefer valid MRZ if non-empty, >1 char, readable, and different from OCR).
+ *   Apply standard cleaning (remove diacritics, normalize hyphens/apostrophes to space, trim spaces) as per master rules *after* selection/validation.
 
 #### 2.4 Worked Example
  *   **Page 1 OCR "Given Name(s)":** SUSHMITA
@@ -2551,58 +2545,89 @@ CASE 17: India – IND – Indian
 ## 3. Fields `father name` and `mother name` — Indian Passports
 #### 3.1 Extraction Source
  *   These fields MUST be extracted **ONLY** from **Page 2 (Additional Info Page)**.
+ *   If Page 2 is unavailable, or the specific labels below are not found, these fields MUST be `""`.
 
-#### 3.2 Locating the Fields
- *   **Father Name:** Locate the exact text label **"Name of Father/Legal Guardian"**. Extract the full name printed on the line(s) immediately following this label.
- *   **Mother Name:** Locate the exact text label **"Name of Mother"**. Extract the full name printed on the line(s) immediately following this label.
- *   **CRITICAL:** Pay close attention to the labels. Do **NOT** extract the name associated with the "Name of Spouse" label for either the `father name` or `mother name` field. If the "Name of Spouse" field happens to be filled, ignore it for these parental fields.
+#### 3.2 Locating the Fields and Extracting
+ *   **Strict Label Matching:** You MUST locate the *exact*, case-sensitive text labels. Do **NOT** use fuzzy matching or assume variations (e.g., "Father's Name" is incorrect).
+ *   **Father Name:**
+     *   Locate the exact text label: **"Name of Father/Legal Guardian"**.
+     *   Extract the **entire full name** printed on the line(s) immediately following this *exact* label.
+     *   Apply standard cleaning (Master Rules 4 & 5: remove diacritics, normalize hyphens/apostrophes/special chars to space, trim leading/trailing spaces, collapse multiple internal spaces to one) to the extracted full name.
+ *   **Mother Name:**
+     *   Locate the exact text label: **"Name of Mother"**.
+     *   Extract the **full name** printed on the line(s) immediately following this *exact* label.
+     *   Apply standard cleaning (Master Rules 4 & 5) to the extracted full name.
+     *   **CRITICAL PARSING STEP:**
+         *   Split the cleaned full name into words using single spaces as delimiters.
+         *   Assign **ONLY THE FIRST WORD** from the resulting list to the `mother name` field.
+         *   If the split results in an empty list (e.g., the field was blank or contained only spaces after cleaning), set `mother name` to `""`.
+ *   **Spouse Name Exclusion:**
+     *   Locate the label "Name of Spouse".
+     *   **Under NO circumstances** should the name associated with "Name of Spouse" be used for `father name` or `mother name`. This data MUST be ignored entirely for these two fields. If OCR mistakenly associates the spouse's name with the father/mother label due to proximity, discard it and report `""` if no other clear value exists for the correct label.
 
 #### 3.3 Validation and Cleaning
- *   Extract the *entire* name as printed.
- *   Apply standard cleaning (remove diacritics, normalize hyphens/apostrophes to space, trim spaces) as per master rules.
- *   If the area following the specific label is genuinely blank on the passport page, output `""` for that field. Do not assume they are never empty.
+ *   Apply standard cleaning as described above *after* extracting the value associated with the correct label.
+ *   If the area following the specific label is genuinely blank, output `""`.
 
-#### 3.4 Worked Example
+#### 3.4 Worked Example (Illustrating Correct Extraction)
  *   **Page 2 Analysis:**
-     *   Label "Name of Father/Legal Guardian" is followed by: EMIL EKKA
-     *   Label "Name of Mother" is followed by: ISWARIYA TIRKEY
-     *   Label "Name of Spouse" is present but the corresponding value area appears blank/unused.
+     *   Label **"Name of Father/Legal Guardian"** is followed by: `EMIL EKKA`
+     *   Label **"Name of Mother"** is followed by: `ISWARIYA TIRKEY`
+     *   Label "Name of Spouse" is followed by: `RAJESH KUMAR` (This name is ignored for father/mother fields)
  *   **Result:**
-     *   `father name` = "EMIL EKKA"
-     *   `mother name` = "ISWARIYA TIRKEY"
-#### 4.2 Cleaning and Validation Rules
- *   **Rule 4.2.1: Comma Removal:** Remove all commas (`,`) from the extracted text. Replace the comma with a single space if separating words, otherwise just remove it.
+     *   `father name` = "EMIL EKKA" (Full name, cleaned)
+     *   `mother name` = "ISWARIYA" (Cleaned full name "ISWARIYA TIRKEY" -> Split ["ISWARIYA", "TIRKEY"] -> First word "ISWARIYA")
+
+#### 3.5 Additional Examples (Illustrating Mother Name Logic)
+ *   **Example 1:** Label "Name of Mother" followed by: `DULIYA DEVI` -> Cleaned: "DULIYA DEVI" -> Split: ["DULIYA", "DEVI"] -> Result: `mother name` = "DULIYA"
+ *   **Example 2:** Label "Name of Mother" followed by: `SITA KUMARI SHARMA` -> Cleaned: "SITA KUMARI SHARMA" -> Split: ["SITA", "KUMARI", "SHARMA"] -> Result: `mother name` = "SITA"
+ *   **Example 3:** Label "Name of Mother" followed by: `MEENA` -> Cleaned: "MEENA" -> Split: ["MEENA"] -> Result: `mother name` = "MEENA"
+ *   **Example 4:** Label "Name of Mother" followed by: `JAYA-LAKSHMI RAO` -> Cleaned: "JAYA LAKSHMI RAO" -> Split: ["JAYA", "LAKSHMI", "RAO"] -> Result: `mother name` = "JAYA"
+ *   **Example 5:** Label "Name of Mother" followed by: `  PRIYA   DEVI  ` -> Cleaned: "PRIYA DEVI" -> Split: ["PRIYA", "DEVI"] -> Result: `mother name` = "PRIYA"
+ *   **Example 6:** Label "Name of Mother" followed by: (blank area) -> Cleaned: "" -> Split: [] -> Result: `mother name` = ""
+ *   **Example 7 (Incorrect Extraction to Avoid):** Label "Name of Mother" followed by `KUSUM DEVI`. **Incorrect:** `mother name` = "KUSUM DEVI". **Correct:** `mother name` = "KUSUM".
+ *   **Example 8 (Incorrect Extraction to Avoid):** Label "Name of Mother" followed by `BHARGAVI AMMA SANKARANARAYANAN POTTI`. **Incorrect:** `mother name` = "BHARGAVI AMMA SANKARANARAYANAN POTTI". **Correct:** `mother name` = "BHARGAVI".
+
+## 4. Field `place of birth` — Indian Passports
+#### 4.1 Extraction Source
+ *   Extract the text directly associated with the **"Place of Birth"** label on the **Page 1 (Biographic Page)**.
+
+#### 4.2 Cleaning and Validation Rules (Emphasis on Fidelity)
+ *   **Rule 4.2.0: Prioritize OCR Fidelity (Master Rule 3 Reinforcement):** Extract the place of birth text *exactly* as it appears following the label. **DO NOT** substitute or hallucinate based on external geographical knowledge. The primary goal is to capture what is printed, even if potentially misspelled or uncommon.
+ *   **Rule 4.2.1: Comma Handling:** Remove commas (`,`). If a comma separates words, replace it with a single space; otherwise, just remove it.
  *   **Rule 4.2.2: Special Character Normalization:** Apply standard cleaning rules from the master prompt (replace hyphens `-`, slashes `/`, parentheses `()` with a single space).
  *   **Rule 4.2.3: Whitespace Cleanup:** Collapse multiple consecutive spaces into a single space. Trim leading/trailing whitespace.
- *   **Rule 4.2.4: OCR Spelling Correction:** Attempt to correct common OCR misinterpretations based on context and known Indian place names. Focus on character-level errors (e.g., MALA -> WALA) rather than completely changing the word unless confidence is very high. **Crucially:** Do not hallucinate or replace a plausible (even if potentially misspelled) place name with a completely different one (e.g., do not change MELAPALAYAM to MADURAI unless the OCR is clearly mangled beyond recognition and strongly suggests MADURAI).
- *   **Rule 4.2.5: Preserve Full Place Name:** After cleaning and potential correction, ensure the *entire* place name as intended on the passport (often District/City and State) is preserved. Do not arbitrarily truncate parts of the name (e.g., keep both KONIBAL PAMPORE and JAMMU AND KASHMIR if present).
- *   **Rule 4.2.6: Final Check:** The final value should be the cleaned, potentially OCR-corrected, full place of birth string without commas.
+ *   **Rule 4.2.4: Conservative OCR Correction:** Perform **MINOR** OCR correction **ONLY** for obvious, high-confidence single-character errors where the corrected word is a clear variant of the OCR text (e.g., OCR `KARAR MALA` might be corrected to `KARAR WALA` *if* confidence is extremely high and it's a known pattern, OCR `KOVvURU` to `KOVVURU`). **Crucially, this is the exception, not the rule.**
+ *   **Rule 4.2.5: Strict Anti-Hallucination:** **DO NOT** replace the extracted text (even if it seems misspelled or incomplete) with a completely different place name. If the OCR reads `GUDUR ANDHRA PRADESH`, the output MUST be `GUDUR ANDHRA PRADESH`, **NEVER** `VIJAYAWADA`. If OCR reads `MELAPALAYAM TAMIL NADU`, output `MELAPALAYAM TAMIL NADU`, **NOT** `MADURAI`. If OCR reads `HARIYALA KHEDA GUJARAT`, output `HARIYALA KHEDA GUJARAT`, **NOT** `KAPAD KEDALA GUJARAT`.
+ *   **Rule 4.2.6: Preserve Full Place Name:** After cleaning, ensure the *entire* place name string as extracted (often District/City and State) is preserved. Do not arbitrarily truncate parts.
+ *   **Rule 4.2.7: Final Value:** The final value is the cleaned, minimally corrected (if applicable per Rule 4.2.4), full place of birth string, prioritizing fidelity to the document.
 
-#### 4.3 Worked Examples (Illustrating Cleaning Rules)
+#### 4.3 Worked Examples (Illustrating Fidelity and Cleaning)
+ *   **Example (Fidelity):**
+     *   OCR: `GUDUR, ANDHRA PRADESH`
+     *   Rule 4.2.1: Remove comma -> `GUDUR ANDHRA PRADESH`
+     *   Rule 4.2.5: Keep as is. -> `GUDUR ANDHRA PRADESH`
+     *   Result: `place of birth` = "GUDUR ANDHRA PRADESH" (NOT VIJAYAWADA)
+ *   **Example (Fidelity):**
+     *   OCR: `VIJAYAWADA`
+     *   Rule 4.2.5: Keep as is. -> `VIJAYAWADA`
+     *   Result: `place of birth` = "VIJAYAWADA" (NOT CHAVANAVARIE ANDHRA PRADESH)
+ *   **Example (Minor Correction - Use Sparingly):**
+     *   OCR: `KARAR MALA PUNJAB`
+     *   Rule 4.2.4: High confidence correction possible -> `KARAR WALA PUNJAB`
+     *   Result: `place of birth` = "KARAR WALA PUNJAB"
+ *   **Example (No Correction - Prioritize Fidelity):**
+     *   OCR: `HARIYALA KHEDA GUJARAT`
+     *   Rule 4.2.4/4.2.5: Correction not obvious/safe. Keep OCR. -> `HARIYALA KHEDA GUJARAT`
+     *   Result: `place of birth` = "HARIYALA KHEDA GUJARAT"
  *   **Example (Comma Removal & Preservation):**
      *   OCR: `RATNAGIRI, MAHARASHTRA`
      *   Rule 4.2.1: Remove comma -> `RATNAGIRI MAHARASHTRA`
      *   Result: `place of birth` = "RATNAGIRI MAHARASHTRA"
- *   **Example (Comma Removal & Preservation):**
-     *   OCR: `LUCKNOW, UTTAR PRADESH`
-     *   Rule 4.2.1: Remove comma -> `LUCKNOW UTTAR PRADESH`
-     *   Result: `place of birth` = "LUCKNOW UTTAR PRADESH"
- *   **Example (OCR Correction):**
-     *   OCR: `KARAR MALA PUNJAB`
-     *   Rule 4.2.4: Correct 'MALA' to 'WALA' based on likely place name -> `KARAR WALA PUNJAB`
-     *   Result: `place of birth` = "KARAR WALA PUNJAB"
- *   **Example (Preserve Full Name - No Truncation):**
-     *   OCR: `KONIBAL PAMPORE JAMMU AND KASHMIR` (Assume already cleaned of commas/spaces)
-     *   Rule 4.2.5: Keep entire string -> `KONIBAL PAMPORE JAMMU AND KASHMIR`
+ *   **Example (Preserve Full Name):**
+     *   OCR: `KONIBAL PAMPORE JAMMU AND KASHMIR` (Assume already cleaned)
+     *   Rule 4.2.6: Keep entire string -> `KONIBAL PAMPORE JAMMU AND KASHMIR`
      *   Result: `place of birth` = "KONIBAL PAMPORE JAMMU AND KASHMIR"
- *   **Example (Preserve Full Name - No Truncation):**
-     *   OCR: `ERANHIPALAM KERALA` (Assume cleaned)
-     *   Rule 4.2.5: Keep entire string -> `ERANHIPALAM KERALA`
-     *   Result: `place of birth` = "ERANHIPALAM KERALA"
- *   **Example (Avoid Hallucination):**
-     *   OCR: `MELAPALAYAM TAMIL NADU` (Assume cleaned)
-     *   Rule 4.2.4/4.2.5: Keep as is, do not change to MADURAI -> `MELAPALAYAM TAMIL NADU`
-     *   Result: `place of birth` = "MELAPALAYAM TAMIL NADU"
  *   **Example (Provided Passport):**
      *   Page 1 OCR "Place of Birth": `HARIL, JHARKHAND`
      *   Rule 4.2.1: Remove comma -> `HARIL JHARKHAND`
@@ -2610,12 +2635,13 @@ CASE 17: India – IND – Indian
 
 ## 5. Fields `place of issue` and `country of issue` — Indian Passports
 #### 5.1 Extraction Source
- *   Extract the text associated with the "Place of Issue" label on **Page 1 (Biographic Page)**.
+ *   Extract the text associated with the **"Place of Issue"** label on **Page 1 (Biographic Page)**.
+ *   **CRITICAL:** Do NOT confuse this with the "Place of Birth" field.
 
 #### 5.2 Assignment Rule
- *   **`place of issue`**: Use the cleaned OCR value if available. If the "Place of Issue" field is blank or unreadable on Page 1, set `place of issue` to `""`.
+ *   **`place of issue`**: Use the cleaned OCR value (standard cleaning: spaces, diacritics). If the "Place of Issue" field is blank or unreadable on Page 1, set `place of issue` to `""`.
  *   **`country of issue`**:
-     *   If `place of issue` is successfully extracted and is a location *within* India (e.g., RANCHI, DELHI, MUMBAI), set `country of issue` to "INDIA".
+     *   If `place of issue` is successfully extracted and is a location *within* India (e.g., RANCHI, DELHI, MUMBAI, CHANDIGARH, VISAKHAPATNAM), set `country of issue` to "INDIA".
      *   If `place of issue` is successfully extracted and is a location *outside* India (e.g., MUSCAT, DOHA, LONDON), determine the country containing that city (using the logic from the master prompt's "Issuance data" section) and set `country of issue` accordingly (e.g., OMAN, QATAR, UNITED KINGDOM).
      *   If `place of issue` is `""`, then `country of issue` MUST also be `""`.
 
@@ -2623,25 +2649,33 @@ CASE 17: India – IND – Indian
  *   **Page 1 OCR "Place of Issue":** RANCHI
  *   **Result:**
      *   `place of issue` = "RANCHI"
-     *   `country of issue` = "INDIA" (Since Ranchi is in India)
+     *   `country of issue` = "INDIA"
 
 #### 5.4 Additional Examples
  *   **Example (Outside India):**
      *   Page 1 OCR "Place of Issue": MUSKAT
      *   Result: `place of issue` = "MUSKAT", `country of issue` = "OMAN"
+ *   **Example (India):**
+     *   Page 1 OCR "Place of Issue": Chandigarh
+     *   Cleaned: "CHANDIGARH"
+     *   Result: `place of issue` = "CHANDIGARH", `country of issue` = "INDIA"
  *   **Example (Blank):**
      *   Page 1 OCR "Place of Issue": (blank/unreadable)
      *   Result: `place of issue` = "", `country of issue` = ""
 
-*   Extract the text associated with the **"Place of Issue"** label on **Page 1 (Biographic Page)**.
- *   **CRITICAL:** Do NOT confuse this with the "Place of Birth" field.
+## 6. Date and Number Field Validation Reminder
+ *   For `birth date`, `expiry date`, and `number`, rigorously apply the Master Prompt validation rules involving comparison with MRZ fields (Rule 7 for `number`, Rule 9 for `expiry date`, implicitly Rule 7 for `birth date` via `mrzDateOfBirth`).
+ *   Ensure dates adhere strictly to DD/MM/YYYY format (Rule 13).
+ *   Pay attention to potential OCR errors in dates (e.g., `03` vs `08`, `2014` vs `2024`) and allow valid MRZ data to correct them per master rules.
+ *   For `number`, ensure the final value matches the validated MRZ value if available and valid (often 9 characters, excluding potential checksum read by OCR from MRZ).
 
-### 6. Compliance Reminders for India Case
- *   Strictly adhere to extracting `father name` and `mother name` ONLY from Page 2, using the exact labels specified.
- *   Ensure the `IND` prefix from `mrzLine1` is never part of the `surname` or `mrzSurname`.
- *   `middle name` is always `""` for Indian passports under these rules.
- *   Derive `country of issue` logically from the `place of issue`; if the place is blank, the country must also be blank.
- *   Follow all Master Prompt cleaning and validation rules unless explicitly overridden here.
+## 7. Compliance Reminders for India Case (Reinforced)
+ *   Extract `father name` (full name) and `mother name` (**first word only**) STRICTLY from Page 2 using the **exact labels** specified. Ignore the spouse's name. If Page 2 / labels are missing, use `""`.
+ *   Ensure the `IND` prefix from `mrzLine1` is NEVER part of the `surname`.
+ *   `middle name` is ALWAYS `""`.
+ *   Prioritize **OCR FIDELITY** for `place of birth`. Avoid hallucination. Correct OCR *only* minimally and with high confidence.
+ *   Derive `country of issue` logically from `place of issue`. If place is blank, country MUST be blank.
+ *   Follow all Master Prompt cleaning and validation rules (especially MRZ comparisons for relevant fields) unless explicitly overridden here.
 
 User Message:
 
@@ -2983,5 +3017,4 @@ Output: Consolidated_Data (dictionary of field names to chosen values) and Conso
     *   Assemble the final JSON object using the values from `Data_Consolidated` after all validation, reconciliation, and sanity checks.
     *   **Invalid/Missing Data:** Any field that remains invalid after all steps **must** have its value set to `""`. This includes fields where the primary OCR source was unusable in both passes and no valid MRZ correction was applicable.
     *   **Structure and Order:** Ensure the output strictly adheres to the specified JSON key order and structure.
-
 10. **Return Output:** Return *only* the final, validated JSON object.
