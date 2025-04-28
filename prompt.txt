@@ -2570,25 +2570,62 @@ CASE 17: India – IND – Indian
  *   **Result:**
      *   `father name` = "EMIL EKKA"
      *   `mother name` = "ISWARIYA TIRKEY"
+#### 4.2 Cleaning and Validation Rules
+ *   **Rule 4.2.1: Comma Removal:** Remove all commas (`,`) from the extracted text. Replace the comma with a single space if separating words, otherwise just remove it.
+ *   **Rule 4.2.2: Special Character Normalization:** Apply standard cleaning rules from the master prompt (replace hyphens `-`, slashes `/`, parentheses `()` with a single space).
+ *   **Rule 4.2.3: Whitespace Cleanup:** Collapse multiple consecutive spaces into a single space. Trim leading/trailing whitespace.
+ *   **Rule 4.2.4: OCR Spelling Correction:** Attempt to correct common OCR misinterpretations based on context and known Indian place names. Focus on character-level errors (e.g., MALA -> WALA) rather than completely changing the word unless confidence is very high. **Crucially:** Do not hallucinate or replace a plausible (even if potentially misspelled) place name with a completely different one (e.g., do not change MELAPALAYAM to MADURAI unless the OCR is clearly mangled beyond recognition and strongly suggests MADURAI).
+ *   **Rule 4.2.5: Preserve Full Place Name:** After cleaning and potential correction, ensure the *entire* place name as intended on the passport (often District/City and State) is preserved. Do not arbitrarily truncate parts of the name (e.g., keep both KONIBAL PAMPORE and JAMMU AND KASHMIR if present).
+ *   **Rule 4.2.6: Final Check:** The final value should be the cleaned, potentially OCR-corrected, full place of birth string without commas.
 
-## 4. Fields `place of issue` and `country of issue` — Indian Passports
-#### 4.1 Extraction Source
+#### 4.3 Worked Examples (Illustrating Cleaning Rules)
+ *   **Example (Comma Removal & Preservation):**
+     *   OCR: `RATNAGIRI, MAHARASHTRA`
+     *   Rule 4.2.1: Remove comma -> `RATNAGIRI MAHARASHTRA`
+     *   Result: `place of birth` = "RATNAGIRI MAHARASHTRA"
+ *   **Example (Comma Removal & Preservation):**
+     *   OCR: `LUCKNOW, UTTAR PRADESH`
+     *   Rule 4.2.1: Remove comma -> `LUCKNOW UTTAR PRADESH`
+     *   Result: `place of birth` = "LUCKNOW UTTAR PRADESH"
+ *   **Example (OCR Correction):**
+     *   OCR: `KARAR MALA PUNJAB`
+     *   Rule 4.2.4: Correct 'MALA' to 'WALA' based on likely place name -> `KARAR WALA PUNJAB`
+     *   Result: `place of birth` = "KARAR WALA PUNJAB"
+ *   **Example (Preserve Full Name - No Truncation):**
+     *   OCR: `KONIBAL PAMPORE JAMMU AND KASHMIR` (Assume already cleaned of commas/spaces)
+     *   Rule 4.2.5: Keep entire string -> `KONIBAL PAMPORE JAMMU AND KASHMIR`
+     *   Result: `place of birth` = "KONIBAL PAMPORE JAMMU AND KASHMIR"
+ *   **Example (Preserve Full Name - No Truncation):**
+     *   OCR: `ERANHIPALAM KERALA` (Assume cleaned)
+     *   Rule 4.2.5: Keep entire string -> `ERANHIPALAM KERALA`
+     *   Result: `place of birth` = "ERANHIPALAM KERALA"
+ *   **Example (Avoid Hallucination):**
+     *   OCR: `MELAPALAYAM TAMIL NADU` (Assume cleaned)
+     *   Rule 4.2.4/4.2.5: Keep as is, do not change to MADURAI -> `MELAPALAYAM TAMIL NADU`
+     *   Result: `place of birth` = "MELAPALAYAM TAMIL NADU"
+ *   **Example (Provided Passport):**
+     *   Page 1 OCR "Place of Birth": `HARIL, JHARKHAND`
+     *   Rule 4.2.1: Remove comma -> `HARIL JHARKHAND`
+     *   Result: `place of birth` = "HARIL JHARKHAND"
+
+## 5. Fields `place of issue` and `country of issue` — Indian Passports
+#### 5.1 Extraction Source
  *   Extract the text associated with the "Place of Issue" label on **Page 1 (Biographic Page)**.
 
-#### 4.2 Assignment Rule
+#### 5.2 Assignment Rule
  *   **`place of issue`**: Use the cleaned OCR value if available. If the "Place of Issue" field is blank or unreadable on Page 1, set `place of issue` to `""`.
  *   **`country of issue`**:
      *   If `place of issue` is successfully extracted and is a location *within* India (e.g., RANCHI, DELHI, MUMBAI), set `country of issue` to "INDIA".
      *   If `place of issue` is successfully extracted and is a location *outside* India (e.g., MUSCAT, DOHA, LONDON), determine the country containing that city (using the logic from the master prompt's "Issuance data" section) and set `country of issue` accordingly (e.g., OMAN, QATAR, UNITED KINGDOM).
      *   If `place of issue` is `""`, then `country of issue` MUST also be `""`.
 
-#### 4.3 Worked Example
+#### 5.3 Worked Example
  *   **Page 1 OCR "Place of Issue":** RANCHI
  *   **Result:**
      *   `place of issue` = "RANCHI"
      *   `country of issue` = "INDIA" (Since Ranchi is in India)
 
-#### 4.4 Additional Examples
+#### 5.4 Additional Examples
  *   **Example (Outside India):**
      *   Page 1 OCR "Place of Issue": MUSKAT
      *   Result: `place of issue` = "MUSKAT", `country of issue` = "OMAN"
@@ -2596,7 +2633,10 @@ CASE 17: India – IND – Indian
      *   Page 1 OCR "Place of Issue": (blank/unreadable)
      *   Result: `place of issue` = "", `country of issue` = ""
 
-### 5. Compliance Reminders for India Case
+*   Extract the text associated with the **"Place of Issue"** label on **Page 1 (Biographic Page)**.
+ *   **CRITICAL:** Do NOT confuse this with the "Place of Birth" field.
+
+### 6. Compliance Reminders for India Case
  *   Strictly adhere to extracting `father name` and `mother name` ONLY from Page 2, using the exact labels specified.
  *   Ensure the `IND` prefix from `mrzLine1` is never part of the `surname` or `mrzSurname`.
  *   `middle name` is always `""` for Indian passports under these rules.
