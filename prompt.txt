@@ -2968,7 +2968,7 @@ Length: (e.g., fixed length, min/max length).
 Content: (e.g., valid country codes, gender codes (M/F/X), checksums internal to the field if applicable, valid character ranges).
 Consistency (Non-MRZ): (e.g., Date of Expiry > Date of Issue).
 Crucially Exclude: Do not perform MRZ cross-validation at this stage.
-Output: Store the validation outcomes in Validation_Status_Pass1. This should map each field name to a status object, e.g., { isValid: boolean, reason: string | null }. isValid is True if all checks pass, False otherwise. reason can optionally store the first validation rule that failed. Handle fields missing from OCR_Result_Pass1 as isValid: False, reason: "Missing".
+Output: Store the validation outcomes in Validation_Status_Pass1. This should map each field name to a status object, e.g., {{ isValid: boolean, reason: string | null }}. isValid is True if all checks pass, False otherwise. reason can optionally store the first validation rule that failed. Handle fields missing from OCR_Result_Pass1 as isValid: False, reason: "Missing".
 OCR Pass 2: Secondary Extraction
 Action: Re-execute the exact same highest-accuracy OCR engine configuration on the exact same input_image used in Step 2. (Re-running ensures potential variations in OCR engine behavior, even if slight, are captured).
 Extraction: Repeat the extraction process as in Step 2.
@@ -2985,17 +2985,17 @@ Retrieve value2 from OCR_Result_Pass2 and status2 from Validation_Status_Pass2.
 Apply Consolidation Logic:
 Case 1: Pass 1 Valid, Pass 2 Invalid:
 Consolidated_Data[field_name] = value1
-Consolidated_Status[field_name] = { isValid: True, source: 'Pass1', needs_review: False }
+Consolidated_Status[field_name] = {{ isValid: True, source: 'Pass1', needs_review: False }}
 Case 2: Pass 1 Invalid, Pass 2 Valid:
 Consolidated_Data[field_name] = value2
-Consolidated_Status[field_name] = { isValid: True, source: 'Pass2', needs_review: False }
+Consolidated_Status[field_name] = {{ isValid: True, source: 'Pass2', needs_review: False }}
 Case 3: Both Passes Valid:
 Consolidated_Data[field_name] = value1 (Prioritize Pass 1 result)
-Consolidated_Status[field_name] = { isValid: True, source: 'Pass1 (Both Valid)', needs_review: False }
+Consolidated_Status[field_name] = {{ isValid: True, source: 'Pass1 (Both Valid)', needs_review: False }}
 (Optional Refinement: If value1 == value2, mark as higher confidence).
 Case 4: Both Passes Invalid (or Missing):
 Consolidated_Data[field_name] = value1 (Tentatively use Pass 1, even if invalid or null/missing)
-Consolidated_Status[field_name] = { isValid: False, source: 'Pass1 (Both Invalid)', needs_review: True, reason1: status1.reason, reason2: status2.reason } (Store reasons for potential later use/debugging).
+Consolidated_Status[field_name] = {{ isValid: False, source: 'Pass1 (Both Invalid)', needs_review: True, reason1: status1.reason, reason2: status2.reason }} (Store reasons for potential later use/debugging).
 Output: Consolidated_Data (dictionary of field names to chosen values) and Consolidated_Status (dictionary tracking validity, source, and review need for each field).
 
 6.  **MRZ Extraction & Validation:**

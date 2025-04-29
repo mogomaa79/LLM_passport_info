@@ -13,7 +13,7 @@ load_dotenv()
 
 LANGSMITH_API_KEY = os.getenv("LANGSMITH_API_KEY")
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
-DATASET_NAME = "India"
+DATASET_NAME = "test_india"
 IMAGE_PATH = "data/indian/indian_yes"
 PROMPT_PATH = "prompt.txt"
 MODEL = "gemini-2.0-flash"
@@ -24,6 +24,7 @@ ADD_DATA = False
 
 def main():
     client = Client(api_key=LANGSMITH_API_KEY)
+
     llm = ChatGoogleGenerativeAI(
         model=MODEL,
         google_api_key=GOOGLE_API_KEY,
