@@ -1503,18 +1503,57 @@ If both versions are available and different, always use mrzSurname.
 If MRZ is unreadable or missing, use ocrSurname.
 
 
-DO NOT:
+🚫 DO NOTS (ABSOLUTELY FORBIDDEN BEHAVIOR)
+These rules must be followed strictly to prevent false extraction:
+❌ Do NOT include IND in the surname — the string "IND" is part of the MRZ prefix and must be excluded
 
 
-Do not include “IND” in the surname.
+❌ Do NOT shorten or guess surnames — always extract the full printed name
 
 
-Do not guess or shorten surnames.
+❌ Do NOT extract anything from the "Given Name(s)" field and treat it as the surname
 
 
-Do not take anything from “Given Name(s)” or address lines.
+❌ Do NOT extract names from the address block, "Place of Birth", "Place of Issue", or other unrelated sections
 
 
+❌ Do NOT use "Name of Spouse" (from Page 2) as the surname
+
+
+Even if it appears near the top or bottom of the document
+
+
+Even if it contains a plausible name
+
+
+Even if the surname field is empty — never use the spouse name
+
+
+❌ Do NOT use "Name of Mother" as the surname
+
+
+Even if it contains a plausible family name
+
+
+Even if the surname field is empty or unclear
+
+
+Even if the mother name appears higher or bolder than other fields — it is not the surname
+
+
+❌ Do NOT mix between other names in the passport and the specified field of extraction
+
+
+Each name field must come only from its exact label
+
+
+Do not assign the father name to the surname field, or the mother name to the given name, etc.
+
+
+No substitutions between fields are allowed under any condition
+
+
+❌ Do NOT infer or fabricate any part of the name based on proximity, alignment, or assumptions
 Examples:
 MRZ: P<INDKOIKKARANPARAMBIL<JUDY<<JINCY → surname = KOIKKARANPARAMBIL JUDY
 
@@ -1525,62 +1564,99 @@ OCR: KOIKKARANPARAMBIL JUDY → same as MRZ → accept
 MRZ: P<INDSHARMA<KUMAR<<AMIT → surname = SHARMA KUMAR (even if OCR says "SHAR")
 
 
-
 🟦 SECTION 2: GIVEN NAME (First Name)
-Objective: Extract the full first name of the passport holder.
-Step-by-step instructions:
-Extract two versions of the given name:
+Objective: Extract the complete first name(s) of the passport holder, without missing or cutting any part.
+
+🛠 Step-by-Step Instructions:
+1. Extract two versions of the given name:
+mrzGivenName:
+ From MRZ Line 1, extract everything after the first << until the end of the line.
 
 
-mrzGivenName: From MRZ line 1, extract everything after the first <<, until the end of the line.
+ocrGivenName:
+ From Page 1, extract the value exactly next to the label "Given Name(s)" (case-insensitive exact match).
 
 
-ocrGivenName: From Page 1, extract the value next to the label "Given Name(s)" (case-insensitive exact match).
+
+2. Clean both extracted values:
+Replace every < character with a space.
 
 
-Clean both versions:
+Collapse multiple spaces into a single space.
 
 
-Replace < with space.
+Trim leading and trailing spaces.
 
 
-Collapse multiple spaces into one.
+
+3. Selection Rule:
+If mrzGivenName is available (non-empty and readable), always use mrzGivenName even if it's slightly different from ocrGivenName.
 
 
-Trim leading and trailing whitespace.
+If mrzGivenName is missing, unreadable, or invalid, use ocrGivenName.
 
 
-Selection Rule:
+Important: Always take the full extracted string as-is after cleaning — no splitting, no guessing, no truncation.
+
+❌ STRICT RULES: DO NOT:
+❌ Do not split the name into parts (keep full name together as one field).
 
 
-If both values are available and different, always use mrzGivenName.
+❌ Do not pick only a part (e.g., avoid picking only "Kaur" if the real name is "Husanpreet Kaur").
 
 
-If MRZ is missing or unreadable, use ocrGivenName.
+❌ Do not remove parts based on assumptions like family name, middle name, initials, etc.
 
 
-DO NOT:
+❌ Do not guess missing parts or correct perceived errors manually.
 
 
-Do not split the given name.
+❌ Do not pull from other fields like "Surname", "Nationality", etc.
 
 
-Do not extract anything from “Surname” or any other field.
+
+✅ Examples:
+MRZ Extract
+OCR Extract
+Final Output
+<<JINCY
+JINCY
+JINCY
+<<HETAL<GANESH
+CAZHETAL GANESH
+HETAL GANESH
+<<OMANA<JAMES<THOMAS
+OMANA JAMES THOMAS
+OMANA JAMES THOMAS
+<<SUMANDEEP<KAUR
+SUMANDEEP KAUR
+SUMANDEEP KAUR
+<<RAFIQA<AKHTER
+RAFIQA AKHTER
+RAFIQA AKHTER
+<<REENA<MASEEH
+REENA MASEEH
+REENA MASEEH
+<<KULDEEP<KAUR
+KULDEEP KAUR
+KULDEEP KAUR
+<<JYOTIBEN<NANJIBHAI
+JYOTSNA
+JYOTIBEN NANJIBHAI
+<<DAISYMOL<SHAJI
+SHAJI
+DAISYMOL SHAJI
+<<SONA<RANI
+SONA RANI
+SONA RANI
+<<FATHIMA<SABURA<RIZWANA<BEGUM
+FATHIMA SABURA RIZWANA BEG
+FATHIMA SABURA RIZWANA BEGUM
 
 
-Do not guess names based on initials or handwriting.
-
-
-Examples:
-MRZ: <<JINCY → given name = JINCY
-
-
-MRZ: <<HETAL<GANESH → given name = HETAL GANESH
-
-
-OCR: CAZHETAL GANESH, MRZ: HETAL GANESH → use MRZ: HETAL GANESH
-
-
+⚡ Final Tip:
+ ✅ Always trust MRZ fully if available, because it's generated electronically.
+ ✅ OCR is only a backup if MRZ fails.
 
 🟦 SECTION 3: MIDDLE NAME
 Objective: Always return a null value for middle name.
@@ -1596,129 +1672,177 @@ Do not try to infer a middle name from a split first name.
 
 
 Do not move part of the given name into the middle name.
+Objective: Extract the full legal name of the father or legal guardian without missing, altering, or guessing any part.
 
-
-
-🟦 SECTION 4: FATHER NAME
-Objective: Extract the full name of the father (or legal guardian).
-Step-by-step instructions:
+🛠 Step-by-Step Instructions:
 Go to Page 2 of the passport.
 
 
-Locate the exact label "Name of Father / Legal Guardian". The label match must be exact and case-insensitive.
+Locate the exact label "Name of Father / Legal Guardian" (case-insensitive but exact wording).
 
 
-Extract the full text directly following this label on the same line or the line immediately after.
+Extract the full text directly following this label:
 
 
-Clean the text:
+Either on the same line.
 
 
-Remove extra whitespace.
+Or the line immediately after if wrapped.
 
 
-Remove surrounding noise characters (e.g., punctuation).
+Do not read from any other area.
 
 
-Do not split or abbreviate the name.
+Clean the extracted text:
 
 
-Return the cleaned full name as the father’s name.
+Normalize spaces (collapse multiple spaces into one).
 
 
-DO NOT:
-Do not extract from any label other than "Name of Father / Legal Guardian".
+Remove surrounding noise characters (punctuation like ., ,, ;, etc.).
 
 
-Do not use values from "Name of Mother" or "Name of Spouse".
+Trim leading and trailing spaces.
 
 
-Do not use address lines or other misleading blocks.
+Return the entire cleaned string as the father’s name.
 
 
-Examples:
-"Name of Father / Legal Guardian" = JUDY → father name = JUDY
+❌ DO NOT:
+❌ Do not extract from any label other than "Name of Father / Legal Guardian".
 
 
-"Name of Father / Legal Guardian" = RAJESH KUMAR SINGH → father name = RAJESH KUMAR SINGH
+❌ Do not infer from "Name of Mother", "Name of Spouse", or any address section.
 
 
-If the field is missing or blank, return "".
+❌ Do not split, truncate, shorten, or guess missing parts of the name.
+
+
+❌ Do not correct perceived "errors" in the name (trust what is written).
 
 
 
-🟦 SECTION 5: MOTHER NAME
+✅ Special Instructions for Missing or Blank Fields:
+If the "Name of Father / Legal Guardian" field is missing, unreadable, or blank:
+ ➔ Return empty string (""), not a guess from any other field.
+
+
+
+🧪 Correct Examples:
+Extracted Text
+Cleaned Father Name
+RAJESH KUMAR SINGH
+RAJESH KUMAR SINGH
+SHIVAJI JADHAN
+SHIVAJI JADHAN
+CITHAMBARAM
+CITHAMBARAM
+(Blank field)
+""
+
+
+🟦 SECTION 5: MOTHER NAME (Fixed)
 Objective: Extract only the first word of the mother's full name.
-Step-by-step instructions:
+ (Only the very first word, nothing more, nothing less.)
+
+🛠 Step-by-Step Instructions:
 Go to Page 2 of the passport.
 
 
-Locate the exact label "Name of Mother" (case-insensitive match).
+Locate the exact label "Name of Mother" (case-insensitive but exact wording).
 
 
-Extract the full text directly following the label.
+Extract the full text immediately following this label:
 
 
-Clean the full name:
+Same line or the line immediately after.
 
 
-Normalize whitespace.
+Do not read from other areas.
 
 
-Remove noise characters.
+Clean the extracted text:
 
 
-Split the cleaned name by space.
+Normalize whitespace (collapse multiple spaces into one).
+
+
+Remove punctuation or unwanted characters.
+
+
+Trim leading/trailing spaces.
+
+
+Split the cleaned string by space.
 
 
 Return only the first word as the mother’s name.
 
 
-DO NOT:
-Do not extract or split "Name of Spouse" or "Name of Father".
+
+❌ DO NOT:
+❌ Do not extract from "Name of Father" or "Name of Spouse" fields.
 
 
-Do not use more than one word for the mother’s name.
+❌ Do not take more than one word.
 
 
-Do not infer missing values from patterns or layout.
+❌ Do not merge words.
 
 
-Do not treat compound names like "DULIYA DEVI" as one — return only "DULIYA".
+❌ Do not guess missing mother names.
 
 
-Examples:
-"Name of Mother" = BABY ELANJIKKAL SAVIER → mother name = BABY
-
-
-"Name of Mother" = SITA KUMARI SHARMA → mother name = SITA
-
-
-"Name of Mother" = JAYA-LAKSHMI RAO → clean to JAYA LAKSHMI RAO, return JAYA
-
-
-"Name of Mother" = blank → mother name = ""
+❌ Do not hallucinate based on formatting or visual guesses.
 
 
 
-🛡️ CRITICAL VALIDATION CHECKLIST (ALWAYS FOLLOW)
-✅ Always compare MRZ and OCR values for surname and given name; if different, prefer MRZ.
+✅ Special Instructions for Missing or Blank Fields:
+If the "Name of Mother" field is missing, unreadable, or empty:
+ ➔ Return empty string (""), never guess from other fields.
 
 
-✅ Use exact label matches: "Surname", "Given Name(s)", "Name of Father / Legal Guardian", "Name of Mother".
+
+🧪 Correct Examples:
+Extracted Text
+Cleaned First Word (Mother Name)
+BABY ELANJIKKAL SAVIER
+BABY
+SITA KUMARI SHARMA
+SITA
+JAYA-LAKSHMI RAO
+JAYA
+(Blank field)
+""
 
 
-✅ Never use or extract from "Name of Spouse".
+🛡️ FINAL CRITICAL VALIDATION RULES:
+Must Do ✅
+Must Not Do ❌
+Use exact label matches only.
+Never guess names based on nearby text.
+Always fully clean extracted text.
+Never swap or confuse fields (Father ≠ Mother).
+Always extract from the correct field.
+Never use spouse names, addresses, etc.
+Return empty string if missing.
+Never hallucinate missing names.
 
 
-✅ Never guess, hallucinate, or abbreviate any name.
+🔥 Why This Correction Will Work:
+FULL name extracted for father, never guessed.
 
 
-✅ Always clean all extracted text: normalize whitespace, remove <, trim edges.
+FIRST WORD only extracted for mother, no extra words.
 
 
-✅ Never assign anything from addresses or unrelated fields as names.
+No confusing Father and Mother fields.
 
+
+No hallucination if fields are missing.
+
+
+No "fixing" or truncating given name or father name based on assumptions.
 
 🟦 SECTION 6: Passport ID/Number
 🟦 STEP 1: UNDERSTAND WHAT A VALID PASSPORT NUMBER LOOKS LIKE
@@ -1792,6 +1916,7 @@ T/8888473 → slash is invalid
 
 
 AA44921 → too short (only 7 characters)
+47305665 → Starts with a number
 
 
 
