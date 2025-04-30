@@ -133,7 +133,6 @@ def upload_results(csv_file_path: str, spreadsheet_id: str, credentials_path: st
     filtered_df = filtered_df[['Maid’s ID', 'Modified Field', 'Edited Agent Value', 'Gemini Value', 'Similarity', 'Agent Value', 'OCR Value']]
 
     filtered_df['Maid’s ID'] = filtered_df['Maid’s ID'].astype(int)
-    filtered_df.to_csv("results/filtered_df.csv", index=False)
 
     headers = filtered_df.columns.tolist()
     data = filtered_df.values.tolist()

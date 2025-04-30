@@ -1815,7 +1815,6 @@ JAYA
 (Blank field)
 ""
 
-
 🛡️ FINAL CRITICAL VALIDATION RULES:
 Must Do ✅
 Must Not Do ❌
@@ -1828,21 +1827,6 @@ Never use spouse names, addresses, etc.
 Return empty string if missing.
 Never hallucinate missing names.
 
-
-🔥 Why This Correction Will Work:
-FULL name extracted for father, never guessed.
-
-
-FIRST WORD only extracted for mother, no extra words.
-
-
-No confusing Father and Mother fields.
-
-
-No hallucination if fields are missing.
-
-
-No "fixing" or truncating given name or father name based on assumptions.
 
 🟦 SECTION 6: Passport ID/Number
 🟦 STEP 1: UNDERSTAND WHAT A VALID PASSPORT NUMBER LOOKS LIKE
@@ -2076,10 +2060,7 @@ Confirm:
 *   OCR: `HARIYALA KHEDA GUJARAT` -> Cleaned: `HARIYALA KHEDA GUJARAT` -> `place of birth` = "HARIYALA KHEDA GUJARAT" (Prioritize fidelity if correction unsure)
 *   OCR: `HARIL, JHARKHAND` -> Cleaned: `HARIL JHARKHAND` -> `place of birth` = "HARIL JHARKHAND"
 
----
-
 🟦 SECTION 8: place of issue and country of issue 
-
 
 #### 5.1 Extraction Source
 *   Text associated with the **"Place of Issue"** label on **Page 1 (Biographic Page)**.

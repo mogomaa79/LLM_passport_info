@@ -5,17 +5,21 @@ from dotenv import load_dotenv
 from DataLoader import DataLoader
 from helpers import map_input_to_messages_lambda, save_results, upload_results, PassportExtraction
 from langchain_google_genai import ChatGoogleGenerativeAI
+from langchain_openai import ChatOpenAI
 from langchain_core.runnables import RunnableLambda
 from langsmith import Client, evaluate
 from langchain_core.output_parsers import JsonOutputParser
+from json.decoder import JSONDecodeError
 
 load_dotenv()
 
 LANGSMITH_API_KEY = os.getenv("LANGSMITH_API_KEY")
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
-DATASET_NAME = "India"
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+
+DATASET_NAME = "test_india"
 IMAGE_PATH = "data/indian/indian_yes"
-PROMPT_PATH = "prompt.txt"
+PROVIDER = "google"
 MODEL = "gemini-2.0-flash"
 GOOGLE_SHEETS_CREDENTIALS_PATH = "credentials.json"
 SPREADSHEET_ID = "1ljIem8te0tTKrN8N9jOOnPIRh2zMvv2WB_3FBa4ycgA"
@@ -25,15 +29,22 @@ ADD_DATA = False
 def main():
     client = Client(api_key=LANGSMITH_API_KEY)
 
-    llm = ChatGoogleGenerativeAI(
-        model=MODEL,
-        google_api_key=GOOGLE_API_KEY,
-        temperature=0.0,
-        max_output_tokens=4096,
-    )
+    if PROVIDER == "openai":
+        llm = ChatOpenAI(
+            model=MODEL,
+            temperature=0.0,
+            max_tokens=2048,
+        )
+    elif PROVIDER == "google":
+        llm = ChatGoogleGenerativeAI(
+            model=MODEL,
+            google_api_key=GOOGLE_API_KEY,
+            temperature=0.0,
+            max_output_tokens=2048,
+        )
 
     runnable = RunnableLambda(map_input_to_messages_lambda)
-    llm_retry = llm.with_retry(stop_after_attempt=5)
+    llm_retry = llm.with_retry(retry_if_exception_type=(Exception, JSONDecodeError), stop_after_attempt=5)
     json_parser = JsonOutputParser(pydantic_object=PassportExtraction)
 
     if ADD_DATA:
@@ -53,27 +64,38 @@ def main():
         return runnable | llm_retry | json_parser
 
     print(f"\nStarting run on dataset '{DATASET_NAME}' with project name '{PROJECT_NAME}'...")
-
-    def exact_match(outputs: dict, reference_outputs: dict) -> bool:
-        return outputs == reference_outputs
     
+    def field_match(outputs: dict, reference_outputs: dict) -> float:
+        reference_outputs = reference_outputs["reference_output"]
+        correct = 0
+        correct += outputs["number"] == reference_outputs["passport id"]
+        correct += outputs["expiry date"] == reference_outputs["passport expiry date"]
+        correct += outputs["issue date"] == reference_outputs["passport issue date"]
+        correct += outputs["birth date"] == reference_outputs["birthdate"]
+        correct += outputs["place of issue"] == reference_outputs["passport place(en)"]
+        correct += outputs["place of birth"] == reference_outputs["birth place"]
+        correct += outputs["country of issue"] == reference_outputs["country of issue"]
+        correct += outputs["country"] == "IND"
+        correct += outputs["gender"] == reference_outputs["gender"][0]
+        correct += outputs["name"] == reference_outputs["first name"]
+        correct += outputs["father name"] == reference_outputs["last name"]
+        correct += outputs["mother name"] == reference_outputs["mother name"].split()[0]
+        #correct += outputs["middle name"] == reference_outputs["middle name"]
+        #correct += outputs["surname"] == reference_outputs["surname"]
+
+        return correct / 12
+    
+    def full_passport(outputs: dict, reference_outputs: dict) -> bool:
+        return field_match(outputs, reference_outputs) == 1
     try:
         def target(inputs: dict) -> dict:
-            """
-            This is the target function where we ensure the input only contains the image data.
-            The prompt is embedded by Langchain.
-            """
-
             formatted_inputs = {"multimodal_prompt": inputs["multimodal_prompt"]}
-
             return llm_chain_factory().invoke(formatted_inputs)
 
-
-        # Run the evaluation
         results = evaluate(
             target,
             data=DATASET_NAME,
-            evaluators=[exact_match],
+            evaluators=[full_passport, field_match],
             experiment_prefix="Passport Images experiment ",
         )
 
