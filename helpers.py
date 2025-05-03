@@ -148,7 +148,11 @@ def upload_results(csv_file_path: str, spreadsheet_id: str, credentials_path: st
 
 def save_results(results, results_path):
     df = pd.DataFrame(results.to_pandas())
-    df.drop(columns=['inputs.multimodal_prompt'], inplace=True)
+    if 'inputs.multimodal_prompt' not in df.columns:
+        df["inputs.image_id"] = df["inputs.inputs"].apply(lambda x: x["image_id"])
+        df.drop(columns=['inputs.inputs'], inplace=True)
+    else:
+        df.drop(columns=['inputs.multimodal_prompt'], inplace=True)
 
     df['output'] = df.apply(lambda row: json.dumps({key.split('.')[1]: row[key] for key in df.columns if key.startswith("output")}), axis=1)
     df.rename(columns={'input.image_id': 'image_id'}, inplace=True)
