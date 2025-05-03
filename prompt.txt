@@ -1490,7 +1490,7 @@ Mother’s Name:
 
 
 Spouse’s Name:
- The spouse’s name is located below the mother’s name on Page 2. It is never to be confused with the father’s or mother’s name. If the spouse’s name field is empty or missing, return an empty string ("").
+ The spouse’s name is located below the mother’s name on Page 2. It is never to be confused with the father’s or mother’s name..
 
 
 Surname and Given Names:
@@ -1499,8 +1499,8 @@ Surname and Given Names:
 
 Place of Birth vs. Place of Issue:
  The place of birth is always positioned above the place of issue on Page 1. Ensure that the place of birth is always extracted first, followed by the place of issue. Do not confuse these two fields.
-🟦 SECTION 1: SURNAME (Last Name)
-Objective: Extract the passport holder’s last name.
+🟦 SECTION 1: SURNAME
+Objective: Extract the passport holder’s surname.
 Step-by-step instructions:
 Extract two versions of the surname:
 
@@ -1508,7 +1508,7 @@ Extract two versions of the surname:
 mrzSurname: From MRZ line 1, extract the text after P<IND and before the first <<.
 
 
-ocrSurname: From Page 1, extract the value beside the label "Surname" (case-insensitive exact match).
+ocrSurname: From Page 1, extract the value beside the label "Surname" (case-insensitive exact match). It is always above given names. Usually the topmost field in Y-coordinates in OCR.
 
 
 Clean both versions:
@@ -1594,7 +1594,7 @@ MRZ: P<INDSHARMA<KUMAR<<AMIT → surname = SHARMA KUMAR (even if OCR says "SHAR"
 
 
 🟦 SECTION 2: GIVEN NAME (First Name)
-Objective: Extract the complete first name(s) of the passport holder, without missing or cutting any part.
+Objective: Extract the complete given name(s) of the passport holder, without missing or cutting any part.
 🛠 Step-by-Step Instructions:
 1. Extract two versions of the given name:
 mrzGivenName:
@@ -1602,8 +1602,7 @@ mrzGivenName:
 
 
 ocrGivenName:
- From Page 1, extract the value exactly next to the label "Given Name(s)" (case-insensitive exact match).
-
+ From Page 1, extract the value exactly next to the label "Given Name(s)" (case-insensitive exact match. It is always below the surname in the image in terms of Y-coordinates.
 
 
 2. Clean both extracted values:
@@ -1616,7 +1615,6 @@ Collapse multiple spaces into a single space.
 Trim leading and trailing spaces.
 
 
-
 3. Selection Rule:
 If mrzGivenName is available (non-empty and readable), always use mrzGivenName even if it's slightly different from ocrGivenName.
 
@@ -1625,7 +1623,6 @@ If mrzGivenName is missing, unreadable, or invalid, use ocrGivenName.
 
 
 Important: Always take the full extracted string as-is after cleaning — no splitting, no guessing, no truncation.
-
 ❌ STRICT RULES: DO NOT:
 ❌ Do not split the name into parts (keep full name together as one field).
 
@@ -1640,52 +1637,19 @@ Important: Always take the full extracted string as-is after cleaning — no spl
 
 
 ❌ Do not pull from other fields like "Surname", "Nationality", etc.
-
-
-
-✅ Examples:
 MRZ Extract
-OCR Extract
-Final Output
-<<JINCY
-JINCY
-JINCY
-<<HETAL<GANESH
-CAZHETAL GANESH
-HETAL GANESH
-<<OMANA<JAMES<THOMAS
-OMANA JAMES THOMAS
-OMANA JAMES THOMAS
-<<SUMANDEEP<KAUR
-SUMANDEEP KAUR
-SUMANDEEP KAUR
-<<RAFIQA<AKHTER
-RAFIQA AKHTER
-RAFIQA AKHTER
-<<REENA<MASEEH
-REENA MASEEH
-REENA MASEEH
-<<KULDEEP<KAUR
-KULDEEP KAUR
-KULDEEP KAUR
-<<JYOTIBEN<NANJIBHAI
-JYOTSNA
-JYOTIBEN NANJIBHAI
-<<DAISYMOL<SHAJI
-SHAJI
-DAISYMOL SHAJI
-<<SONA<RANI
-SONA RANI
-SONA RANI
-<<FATHIMA<SABURA<RIZWANA<BEGUM
-FATHIMA SABURA RIZWANA BEG
-FATHIMA SABURA RIZWANA BEGUM
-
-
+<<JINCY → JINCY → JINCY
+MRZ Extract
+<<HETAL<GANESH → CAZHETAL GANESH → HETAL GANESH
+MRZ Extract
+<<OMANA<JAMES<THOMAS → OMANA JAMES THOMAS → OMANA JAMES THOMAS
+MRZ Extract
+<<SUMANDEEP<KAUR → SUMANDEEP KAUR → SUMANDEEP KAUR
+MRZ Extract
+<<RAFIQA<AKHTER → RAFIQA AKHTER → RAFIQA AKHTER Examples:
 ⚡ Final Tip:
  ✅ Always trust MRZ fully if available, because it's generated electronically.
  ✅ OCR is only a backup if MRZ fails.
-
 🟦 SECTION 3: MIDDLE NAME
 Objective: Always return a null value for middle name.
 Rule:
@@ -1693,8 +1657,6 @@ Set middle name = "" (empty string) in all cases.
 
 
 Indian passports do not have a separate middle name field.
-
-
 DO NOT:
 Do not try to infer a middle name from a split first name.
 
@@ -1717,8 +1679,6 @@ Either on the same line.
 
 
 Or the line immediately after if wrapped.
-
-
 Do not read from any other area.
 
 
@@ -1914,7 +1874,6 @@ AA44921 → too short (only 7 characters)
 47305665 → Starts with a number
 
 
-
 🟦 STEP 2: WHERE TO LOOK FOR THE PASSPORT NUMBER
 You must extract the passport number from two trusted locations only:
 From the printed field on Page 1 (Biographic Page):
@@ -1938,7 +1897,6 @@ The first 9 characters of this line include the passport number and a check digi
 Extract only the first 8 characters (ignore the 9th check digit).
 
 
-
 🟦 STEP 3: CLEAN THE VALUES
 Apply all of the following cleaning steps:
 Remove all whitespace
@@ -1956,7 +1914,6 @@ Ensure only uppercase letters and digits remain
 Confirm the final result is exactly 8 characters long
 
 
-
 🟦 STEP 4: DECIDE WHICH VALUE TO KEEP
 Compare both the cleaned OCR value and the cleaned MRZ value:
 If both values are present and exactly the same → ✅ use that value
@@ -1969,7 +1926,6 @@ If only one value is present and valid → ✅ use that value
 
 
 If neither is valid → ❌ return an empty string: ""
-
 
 
 🟦 STEP 5: REJECTION RULES
@@ -1987,7 +1943,6 @@ Reject anything that meets ANY of the following:
 
 
 ❌ Looks like a serial number or is too long (e.g. starts with C03...)
-
 
 
 🧪 STEP 6: EXAMPLES FOR EVERY CASE

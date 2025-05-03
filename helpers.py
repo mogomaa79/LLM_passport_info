@@ -20,7 +20,7 @@ SCOPES = [
 ]
 
 try:
-    with open("prompt.txt", "r", encoding="utf-8") as f:
+    with open("prompts/Philippines.txt", "r", encoding="utf-8") as f:
         prompt = f.read()
 except Exception as e:
     raise ValueError(f"Error reading prompt.txt: {e}")

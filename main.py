@@ -6,7 +6,6 @@ from DataLoader import DataLoader
 import pandas as pd
 from helpers import map_input_to_messages_lambda, save_results, upload_results, PassportExtraction
 from langchain_google_genai import ChatGoogleGenerativeAI
-from langchain_openai import ChatOpenAI
 from langchain_core.runnables import RunnableLambda
 from langsmith import Client, evaluate
 from langchain_core.output_parsers import JsonOutputParser
@@ -18,9 +17,9 @@ LANGSMITH_API_KEY = os.getenv("LANGSMITH_API_KEY")
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
-DATASET_NAME = "failed_indians"
+DATASET_NAME = "Philippines"
 IMAGE_PATH = "data/indian/indian_yes"
-PROVIDER = "google"
+
 MODEL = "gemini-2.0-flash"
 GOOGLE_SHEETS_CREDENTIALS_PATH = "credentials.json"
 SPREADSHEET_ID = "1ljIem8te0tTKrN8N9jOOnPIRh2zMvv2WB_3FBa4ycgA"
@@ -30,19 +29,13 @@ ADD_DATA = False
 def main():
     client = Client(api_key=LANGSMITH_API_KEY)
 
-    if PROVIDER == "openai":
-        llm = ChatOpenAI(
-            model=MODEL,
-            temperature=0.0,
-            max_tokens=2048,
-        )
-    elif PROVIDER == "google":
-        llm = ChatGoogleGenerativeAI(
-            model=MODEL,
-            google_api_key=GOOGLE_API_KEY,
-            temperature=0.0,
-            max_output_tokens=2048,
-        )
+    llm = ChatGoogleGenerativeAI(
+        model=MODEL,
+        google_api_key=GOOGLE_API_KEY,
+        temperature=0.0,
+        max_tokens=50000,
+        max_output_tokens=2048,
+    )
 
     runnable = RunnableLambda(map_input_to_messages_lambda)
     llm_retry = llm.with_retry(retry_if_exception_type=(Exception, JSONDecodeError), stop_after_attempt=5)
@@ -67,7 +60,9 @@ def main():
     print(f"\nStarting run on dataset '{DATASET_NAME}' with project name '{PROJECT_NAME}'...")
     
     def field_match(outputs: dict, reference_outputs: dict) -> float:
-        try:    
+        try:
+            if "reference_output" in reference_outputs:
+                reference_outputs = reference_outputs["reference_output"]
             convert = lambda value: pd.to_datetime(value).strftime('%d/%m/%Y') if pd.to_datetime(value, errors='coerce') is not pd.NaT else value
             correct = 0
             correct += outputs["number"] == reference_outputs["passport id"]
@@ -77,14 +72,14 @@ def main():
             correct += outputs["place of issue"] == reference_outputs["passport place(en)"]
             correct += outputs["place of birth"] == reference_outputs["birth place"]
             correct += outputs["country of issue"] == reference_outputs["country of issue"]
-            correct += outputs["country"] == "IND"
+            correct += outputs["country"] == "PHL"
             correct += outputs["gender"] == reference_outputs["gender"][0]
             correct += outputs["name"] == reference_outputs["first name"]
-            correct += outputs["father name"] == reference_outputs["last name"]
-            correct += outputs["mother name"] == reference_outputs["mother name"].split()[0]
-            #correct += outputs["middle name"] == reference_outputs["middle name"]
-            #correct += outputs["surname"] == reference_outputs["surname"]
-            return correct / 12
+            correct += outputs["father name"] == ""
+            correct += outputs["mother name"] == ""
+            correct += outputs["middle name"] == reference_outputs["middle name"]
+            correct += outputs["surname"] == reference_outputs["surname"]
+            return correct / 14
         except Exception as e:
             print(f"\nAn error occurred during field matching: {e}")
             traceback.print_exc()
@@ -98,16 +93,15 @@ def main():
                 inputs = inputs["inputs"]
             if "multimodal_prompt" not in inputs:
                 raise ValueError("Missing 'multimodal_prompt' in inputs")
+            
             formatted_inputs = {"multimodal_prompt": inputs["multimodal_prompt"]}
             return llm_chain_factory().invoke(formatted_inputs)
-        def exact_match(inputs: dict, outputs: dict) -> bool:
-            return True
         
         results = evaluate(
             target,
-            data=DATASET_NAME,
-            evaluators=[exact_match],
-            experiment_prefix="Passport Images ",
+            data=client.list_examples(dataset_name=DATASET_NAME, splits=["base"]),
+            evaluators=[field_match, full_passport],
+            experiment_prefix=f"{MODEL} ",
             client=client,
         )
 
