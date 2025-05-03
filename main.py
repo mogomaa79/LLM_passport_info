@@ -1,6 +1,7 @@
 import traceback
 import random
 import os
+import time
 from dotenv import load_dotenv
 from DataLoader import DataLoader
 import pandas as pd
@@ -78,7 +79,7 @@ def main():
             correct += outputs["father name"] == ""
             correct += outputs["mother name"] == ""
             correct += outputs["middle name"] == reference_outputs["middle name"]
-            correct += outputs["surname"] == reference_outputs["surname"]
+            correct += outputs["surname"] == reference_outputs["last name"]
             return correct / 14
         except Exception as e:
             print(f"\nAn error occurred during field matching: {e}")
@@ -95,7 +96,9 @@ def main():
                 raise ValueError("Missing 'multimodal_prompt' in inputs")
             
             formatted_inputs = {"multimodal_prompt": inputs["multimodal_prompt"]}
-            return llm_chain_factory().invoke(formatted_inputs)
+            results = llm_chain_factory().invoke(formatted_inputs)
+            time.sleep(2)
+            return results
         
         results = evaluate(
             target,

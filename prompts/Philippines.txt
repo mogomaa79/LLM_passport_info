@@ -42,62 +42,70 @@ Locate the two‑line MRZ and store exactly 44 characters each as:
 FIELD EXTRACTION & NORMALIZATION
  Extract every key below; if absent or invalid, output the empty string "". Never hallucinate.
 
- Identity & travel data
 
 
+<Fields>
 number 
-passport number from OCR and mrzLine2 positions 1‑9; must match ^[A‑Z0-9]{{6,9}}$.
-### Extraction Sources
-MRZ candidate – take characters 1‑9 of mrzLine2 (immediately after the first <).
+Extraction Sources:
+MRZ Candidate:
 
 
-OCR candidate – locate the first 9‑character token in the cleaned OCR text that begins with an uppercase “P”.
+Extract the passport number from positions 1-9 in mrzLine2 (immediately after the first <).
 
 
-Each candidate is processed independently through the validation pipeline.
- After validation, select the output with the priority order:
-Valid MRZ candidate
+Example: From MRZ line: "P6102238B8PHL7206166F3101148<<<<<<<<<<<<<<04", the passport number is "P6102238".
 
 
-Valid OCR candidate
+OCR Candidate:
 
 
-"" (if both invalid)
+Locate the first 9-character token in the cleaned OCR text that starts with an uppercase "P".
 
 
-Always store the raw, un‑converted OCR token (if found) in original number, even if it is later rejected.
-### Validation & Mandatory Conversion Pipeline
- Run the following four checks in strict order for every candidate.
- If any check fails, immediately reject the candidate.
-Length Check
+Example: In OCR text: "P6102238B8PHL7206166F3101148", the passport number is "P6102238B".
 
 
-The token must be exactly 9 characters.
+Validation Pipeline:
+Length Check:
 
 
-Anything shorter or longer is invalid (e.g. P1234567, length 8 → reject).
+The passport number must be exactly 9 characters long.
 
 
-Prefix Check
+Valid: P12345678 (9 characters)
 
 
-Position 1 must be an uppercase “P”.
+Invalid: P1234567 (8 characters) or P1234567890 (10 characters).
 
 
-Lower‑case p or any other letter causes rejection (e.g. p12345678 → reject).
+Prefix Check:
 
 
-Digit‑Block Check
+The first character must be an uppercase "P".
 
 
-Positions 2 through 8 must all be digits (0‑9).
+Valid: P12345678.
 
 
-If any character in that block is non‑digit—letters, punctuation, spaces—the candidate is invalid
- (e.g. P12A45678 → reject).
+Invalid: p12345678 or A12345678.
 
 
-Last‑Character Processing
+Digit-Block Check:
+
+
+The characters in positions 2 through 8 must all be digits (0-9).
+
+
+Valid: P12345678.
+
+
+Invalid: P12A45678 (contains letter "A") or P1234 678 (contains a space).
+
+
+Last-Character Processing:
+
+
+The 9th character must either remain unchanged or be converted based on the following rules:
 
 
 If the 9th character is A, B, or C, keep it unchanged.
@@ -109,23 +117,62 @@ If the 9th character is 8, convert it to B.
 If the 9th character is 0, convert it to C.
 
 
-Any other character (including 1‑7 or 9 or letters other than A/B/C) → reject.
+Any other character (e.g., 1, 2, 7, 9, or letters other than A/B/C) should cause rejection.
 
 
-After step 4, the token is considered valid.
-Return the converted value as number (always 9 characters).
-### Quick Reference Examples
-Valid after conversion
-P06393008 → P0639300B   (‘8’ converted to ‘B’)
+Valid Examples:
 
 
-P06393000 → P0639300C   (‘0’ converted to ‘C’)
+P12345678A → stays P12345678A
 
 
-P00000008 → P0000000B   (‘8’ converted to ‘B’)
+P12345678B → stays P12345678B
 
 
-Valid already compliant
+P12345678C → stays P12345678C
+
+
+P12345678 → P1234567B (8 → B)
+
+
+P12345670 → P1234567C (0 → C)
+
+
+Invalid Examples:
+
+
+P12345679 → reject (9 is not convertible)
+
+
+P1234567D → reject (D is not a valid character)
+
+
+Validation Process:
+Each candidate (OCR and MRZ) is processed independently through the validation pipeline.
+
+
+After validation, select the valid candidate based on the following priority order:
+
+
+Valid MRZ candidate → Use the MRZ value.
+
+
+Valid OCR candidate → Use the OCR value if the MRZ is invalid.
+
+
+If both are invalid, output "".
+Reference Examples:
+Valid after conversion:
+P06393008 → P0639300B (‘8’ converted to ‘B’)
+
+
+P06393000 → P0639300C (‘0’ converted to ‘C’)
+
+
+P00000008 → P0000000B (‘8’ converted to ‘B’)
+
+
+Valid already compliant:
 P4567890C → stays P4567890C
 
 
@@ -138,426 +185,791 @@ P1234567B → stays P1234567B
 P1234567C → stays P1234567C
 
 
-Invalid (rejection examples)
-P1234567    → reject (only 8 chars)
+Invalid (rejection examples):
+P1234567 → reject (only 8 chars)
 
 
-P123456789  → reject (9th char ‘9’ is not convertible)
+P123456789 → reject (9th char ‘9’ is not convertible)
 
 
-A12345678B  → reject (does not start with ‘P’)
+A12345678B → reject (does not start with ‘P’)
 
 
-P1234567BC  → reject (10 chars)
+P1234567BC → reject (10 chars)
 
 
-P12A45678C  → reject (letter in digit block)
+P12A45678C → reject (letter in digit block)
 
 
-P123456D8   → reject (letter ‘D’ in digit block)
+P123456D8 → reject (letter ‘D’ in digit block)
 
 
-PABCDEFGH   → reject (positions 2‑8 are not digits)
-
-
-### Implementation Pseudocode (for each candidate)
-token = token.upper()          # force uppercase
-
-if length(token) != 9: reject
-if token[0] != "P": reject
-if not token[1:8].isdigit(): reject
-
-last = token[8]
-if last == "8": last = "B"
-elif last == "0": last = "C"
-elif last in ("A", "B", "C"): pass
-else: reject
-
-validated_number = "P" + token[1:8] + last
-
-Return validated_number if the candidate survives all checks; otherwise reject.
-### Compliance Notes
-Never modify positions 2‑8 except to confirm they are digits.
-
-
-Ensure the returned string is always length 9.
-
-
+PABCDEFGH → reject (positions 2-8 are not digits)
 
 country 
-ISO 3166‑1 alpha‑3 code from OCR or MRZ: Always “PHL”
+ISO 3166‑1 alpha‑3 code from OCR or MRZ: Always Use “PHL” for country field
 
 
 name 
-given names (English): replace “‑” with space, remove apostrophes, strip diacritics.
+Steps for Extraction & Cleaning:
+Extract Name from OCR:
+
+
+Capture the given names from the OCR text.
+
+
+Clean the OCR Name:
+
+
+Replace hyphens ("‑") with spaces.
+
+
+Remove apostrophes.
+
+
+Strip diacritics (accent marks) from all characters.
+
+
+Extract Name from MRZ (mrzGivenNames):
+
+
+Capture the given names from the MRZ text (from mrzGivenNames field).
+
+
+Compare OCR Name with MRZ Name:
+
+
+If MRZ Name is non-empty and longer than one character, compare the OCR name with the MRZ name.
+
+
+If both names differ significantly, use MRZ Name as the final name.
+
+
+If OCR name is valid and clear, keep OCR Name as the final name.
+
+
+Final Clean-up:
+
+
+Apply the same cleaning rules to both OCR and MRZ names:
+
+
+Hyphens ("‑") → spaces.
+
+
+Apostrophes → removed.
+
+
+Strip diacritics.
+
+
+Examples:
+Example 1:
+
+
+OCR Name: "JANE DOE"
+
+
+MRZ Given Names: "JANE DOE"
+
+
+Final Name: "JANE DOE" (no change, both are identical).
+
+
+Example 2:
+
+
+OCR Name: "SELAMAWIT BERHIE"
+
+
+MRZ Given Names: "SELAMAWIT BERIHIE"
+
+
+Final Name: "SELAMAWIT BERIHIE" (MRZ name is used because it differs from OCR).
+
+
+Example 3:
+
+
+OCR Name: "RAHUL"
+
+
+MRZ Given Names: "<"
+
+
+Final Name: "RAHUL" (MRZ is unreadable, so OCR name is kept).
 
 
 surname 
-family name (English): Extract from OCR visual zone. Clean this candidate (replace “‑” with space, remove apostrophes, strip diacritics). Also extract and clean `mrzSurname` from MRZ Line 1 (positions 6 to first <<, replace < with space). 
-**CRITICAL:** Compare the cleaned OCR candidate with the cleaned `mrzSurname`. **If the `mrzSurname` is valid and differs from the cleaned OCR surname, you MUST use the `mrzSurname` value for the final `surname` field.** If OCR is unreadable/missing, use `mrzSurname`. Follow rules for non-Latin characters and special characters:
-	1. Translate Non-Latin Characters to English:
+Steps for Extraction & Cleaning:
+Extract Surname from OCR:
 
 
-Rule: If the "surname" contains non-Latin characters, translate them into their English equivalent.
+Capture the surname from the OCR text.
 
 
-Example:
+Clean the OCR Surname:
 
 
-MARIÑA→ MARINA(Spanish "Ñ" replaced with Latin "N")
+Replace hyphens ("‑") with spaces.
 
 
-RAÑAQUE→ RANAQUE(Spanish "Ñ" replaced with Latin "N")
+Remove apostrophes.
 
 
-2. Replace Special Characters:
+Strip diacritics from all characters.
 
 
-Rule: Replace special characters like “‑,” “/,” and “( )” with spaces.
+Extract Surname from MRZ Line 1:
 
 
-Example:
+Capture the surname from MRZ Line 1, specifically from positions 6 to the first <<.
 
 
-MATAG-OB LEYTE → MATAG OB LEYTE
+Replace < characters with spaces.
 
 
-TAGANA-AN SGO DN → TAGANA AN SGO DN
+Critical Comparison:
+
+
+Compare the cleaned OCR surname with the cleaned MRZ surname.
+
+
+If the MRZ surname is valid and differs from the cleaned OCR surname, use the MRZ surname for the final surname.
+
+
+If the OCR surname is unreadable or missing, use the MRZ surname.
+
+
+Non-Latin Characters:
+
+
+Translate non-Latin characters into their English equivalents (e.g., "Ñ" → "N").
+
+
+Replace Special Characters:
+
+
+Replace special characters such as:
+
+
+Hyphens ("‑") with spaces.
+
+
+Slashes ("/") with spaces.
+
+
+Parentheses ("( )") with spaces.
+
+
+Examples:
+Example 1:
+
+
+OCR Surname: "MARIÑA"
+
+
+MRZ Surname: "MARIÑA"
+
+
+Final Surname: "MARINA" (Non-Latin character "Ñ" translated to "N").
+
+
+Example 2:
+
+
+OCR Surname: "MATAG-OB LEYTE"
+
+
+MRZ Surname: "MATAG OB LEYTE"
+
+
+Final Surname: "MATAG OB LEYTE" (hyphen replaced with a space).
+
+
+Example 3:
+
+
+OCR Surname: "RAÑAQUE"
+
+
+MRZ Surname: "RAÑAQUE"
+
+
+Final Surname: "RANAQUE" (Non-Latin character "Ñ" translated to "N").
+
+
 middle name
-• Method A: read the labelled middle‑name field (first value only).
-• Method B: subtract MRZ given names from OCR given‑name string; remainder = middle name.
- • Clean “‑” or “.” → space; remove apostrophes & diacritics.
+Steps for Extraction & Cleaning:
+Method A (Preferred):
+
+
+Extract the labeled middle name field from the OCR.
+
+
+If the field is present, use only the first value as the middle name.
+
+
+Method B (Fallback):
+
+
+If the middle name is missing or unclear from the OCR, subtract the MRZ given names from the OCR given names.
+
+
+The remainder will be treated as the middle name.
+
+
+Clean the Middle Name:
+
+
+Replace hyphens ("‑") with spaces.
+
+
+Remove apostrophes.
+
+
+Strip diacritics from all characters.
+
+
+Examples:
+Example 1 (Method A):
+
+
+OCR Name: "JANE DOE"
+
+
+Middle Name: "" (No middle name available, hence empty).
+
+
+Example 2 (Method B):
+
+
+OCR Given Names: "JANE ANN DOE"
+
+
+MRZ Given Names: "JANE DOE"
+
+
+Final Middle Name: "ANN" (Subtract MRZ given names from OCR given names, the remainder is the middle name).
+Each field (name, surname, middle name) follows these consistent formatting rules:
+Hyphen Replacement: Replace all hyphens ("‑") with spaces.
+
+
+Apostrophe Removal: Remove any apostrophes in the names.
+
+
+Diacritic Stripping: Remove all diacritical marks (accents) from characters, e.g., Á → A, Ñ → N.
+
+
+Special Character Replacement:
+
+
+Replace slashes ("/") with spaces.
+
+
+Replace parentheses ("( )") with spaces.
+
+
+Replace angle brackets ("<") with spaces.
 
 
 gender 
-M, F, or X; prefer MRZ if conflicting.
+OCR Candidate:
+Source: Extract gender from the OCR text.
+
+
+Format: The gender is typically represented as "M" for Male and "F" for Female in the OCR text.
+MRZ Candidate:
+Source: Extract gender from mrzLine2.
+
+
+The gender is located at position 21 of mrzLine2.
+
+
+Format: The gender is represented as "M" for Male, "F" for Female, or X for a non-binary gender (if applicable in the MRZ).
 
 
 place of birth 
-Remove commas; translate non‑Latin to English; replace “‑”, “/”, “( )” with space; collapse duplicates in parentheses; auto‑correct clear OCR variants of MANILA; never add spaces if none existed.
-1. Remove Commas:
-Rule: If there are commas in the "place of birth," remove them.
+1. Extract from OCR Next to “Place of Birth”:
+Capture the place of birth from the OCR text.
+
+
+2. Remove Commas:
+Remove any commas that exist in the place of birth.
 
 
 Example:
-
-
 CALUBIAN, LEYTE → CALUBIAN LEYTE
 
 
 DASMARIÑAS, CAV → DASMARINAS CAV
 
 
-Translate Non-Latin Characters to English:
-
-
-Rule: If the "place of birth" contains non-Latin characters, translate them into their English equivalent.
+3. Translate Non-Latin Characters to English:
+If the place of birth contains non-Latin characters, translate them into their English equivalent.
 
 
 Example:
-
-
-DASMARIÑAS CAV → DASMARINAS CAV (Spanish "Ñ" replaced with Latin "N")
+DASMARIÑAS CAV → DASMARIÑAS CAV (Spanish "Ñ" replaced with Latin "N")
 
 
 PARAÑAQUE MM → PARANAQUE MM (Spanish "Ñ" replaced with Latin "N")
 
 
-Replace Special Characters:
-
-
-Rule: Replace special characters like “‑,” “/,” and “( )” with spaces.
+4. Replace Special Characters:
+Replace special characters like hyphens ("‑"), slashes ("/"), and parentheses ("( )") with spaces.
 
 
 Example:
-
-
 MATAG-OB LEYTE → MATAG OB LEYTE
 
 
 TAGANA-AN SGO DN → TAGANA AN SGO DN
 
 
-Collapse Duplicates in Parentheses:
-
-
-Rule: If there are duplicates within parentheses, collapse them into one instance.
+5. Collapse Duplicates in Parentheses:
+If the place of birth contains duplicate entries within parentheses, collapse them into one instance.
 
 
 Example:
-
-
 (LEYTE) (LEYTE) → (LEYTE)
 
 
-Auto-Correct OCR Variants of Common Place Names:
+6. Auto-Correct OCR Variants of Common Place Names:
+Automatically correct common OCR misinterpretations of place names (such as misreading or incomplete text).
 
 
-Rule: Automatically correct common OCR misinterpretations of place names, like "MANILA" and others.
-
-
-Example:
-
-
+Examples:
 MANILA → MANILA (even if OCR scans miss some characters, correct them)
 
 
 DAVAD CITY → DAVAO CITY (correct OCR variants)
 
 
-BAYAWAN NL OR → BAYAWAN NEG OR (correct OCR errors)
+BAYAWAN NL OR → BAYAWAN NEG OR (correct OCR error)
 
 
-Never Add Spaces Where None Existed:
+7. Never Add Spaces Where None Existed:
+Do not insert any spaces if they were not originally present in the place of birth.
 
 
-Rule: Do not insert any spaces if they were not originally present in the "place of birth."
-
-
-Example:
-
-
+Examples:
 DAVAO CITY → DAVAO CITY (No spaces added if none existed)
 
 
 CALUBIAN LEYTE → CALUBIAN LEYTE (Do not insert unnecessary spaces)
 
 
-Failed Examples:
-The following examples do not follow the above rules and need corrections:
-Incorrect Mappings (based on the provided instructions):
-CALUBIAN LEYTE → CALUBIAN LEYTEAL (The original place is correct. Removing unnecessary added characters would yield "CALUBIAN LEYTE").
+Failed Examples (Corrections Needed):
+The following examples do not follow the above rules and need corrections. Here are the correct mappings:
+CALUBIAN LEYTE → CALUBIAN LEYTE (Correct, but don't add extra characters like "LEYTEAL")
 
 
-DASMARIÑAS CAV → DASMARIÑAS CAV (Correct, but if OCR misinterprets it as "DASMARIÑAS CAV" without the tilde, it needs to be "DASMARIÑAS CAV").
+BAYAWAN NL OR → BAYAWAN NEG OR (Correcting OCR error "NL" to "NEG")
 
 
-BAYAWAN NL OR → BAYAWAN NEG OR (Correcting OCR error "NL" to "NEG").
+SALCEDO ILS SR → SALCEDO ILS SR (It should be "SALCEDO ILS SR", no truncation)
 
 
-SALCEDO ILS SR → SALCEDO ILS S (It should be "SALCEDO ILS SR" as it is the original text without unnecessary truncation).
+MATAG-OB LEYTE → MATAG OB LEYTE (Correct replacement of hyphen with space)
 
 
-MATAG-OB LEYTE → MATAG OB LEYTE (Correct replacement of "‑" with a space).
+TAGANA-AN SGO DN → TAGANA AN SGO DN (Correct replacement of hyphen with space)
 
 
-TAGANA-AN SGO DN → TAGANA AN SGO DN (Correct replacement of "‑" with a space).
+PASSI ILOILO → PASSI ILOILO (No change needed, ensure OCR variants are handled)
 
 
-PASSI ILOILO → PASSI ILOILO (No change needed, but ensure that OCR variants are handled).
+PARAÑAQUE MM → PARANAQUE MM (Correct "Ñ" to "N")
 
 
-PARAÑAQUE MM → PARANAQUE MM (Correct "Ñ" to "N").
+NABUNTURAN DAVAO → NABUNTURAN DAVAO (Correct OCR error, change "NABUNTURA" to "NABUNTURAN")
 
 
-NABUNTURAN DAVAO → NABUNTURA DAVAO (Correct OCR error, change "NABUNTURA" to "NABUNTURAN").
+LAUA-AN ANTIQUE → LAUA AN ANTIQUE (Correct hyphen to space)
 
 
-LAUA-AN ANTIQUE → LAUA AN ANTIQUE (Correct "‑" to space).
-
-
-DAVAD CITY → DAVAO CITY (Correct OCR error).
+DAVAD CITY → DAVAO CITY (Correct OCR error)
 
 
 birth date 
-Format: DD/MM/YYYY: parse OCR (`original birth date`) and cross‑check `mrzDateOfBirth`. **VALIDATION:** If both OCR and MRZ yield valid dates (DD/MM/YYYY format) but they differ, **the `mrzDateOfBirth` MUST BE USED for the final `birth date` field.** 
-If the OCR date is invalid or missing, and the `mrzDateOfBirth` is valid, use `mrzDateOfBirth`. Ensure final output is DD/MM/YYYY.
+Extract the Birth Date from OCR:
+
+
+Source: Capture the birth date from the OCR text, specifically the field labeled "original birth date".
+
+
+Format: The OCR birth date should be in DD/MM/YYYY format (e.g., "16/06/1972").
+
+
+If the OCR birth date is invalid (e.g., malformed or missing), this field will need to be validated against the MRZ value.
+
+
+Extract the Birth Date from MRZ:
+
+
+Source: The MRZ data contains the birth date in Line 2, specifically from positions 14 to 19.
+
+
+Format: The birth date in the MRZ is in the YYMMDD format. To convert it to the required DD/MM/YYYY format, perform the following:
+
+
+Extract the value from positions 14-19 of mrzLine2.
+
+
+For Example: The MRZ line is: "P6102238B8PHL7206166F3101148<<<<<<<<<<<<<<04".
+
+
+The date of birth from this MRZ line is located at positions 14-19 and is "720616", which corresponds to 16/06/1972 (the 14th and 15th digits represent the year, 1972, the 16th and 17th digits represent the month, 06, and the 18th and 19th digits represent the day, 16).
+
+
+Validation:
+
+
+Step 1: Check if both the OCR birth date and the MRZ date of birth are valid.
+
+
+If both are valid and in DD/MM/YYYY format:
+
+
+Step 2: If the OCR birth date and MRZ date of birth differ, use the MRZ date of birth as the final value for the birth date field.
+
+
+If the OCR date is invalid or missing:
+
+
+Step 3: If the MRZ date of birth is valid, use the MRZ date of birth for the final birth date.
+
+
+Final Output:
+
+
+The final birth date must be in DD/MM/YYYY format, regardless of whether it came from OCR or MRZ.
+
+
+If the date is extracted from the MRZ and is in YYMMDD format, convert it to DD/MM/YYYY.
 
 
 issue date 
-Format: DD/MM/YYYY.
-**Strict Requirement:** Extract *only* from the designated OCR "Date of Issue" field, exactly as labeled on the passport page.
-**If *any* part of the date (day, month, or year) within this specific field's text is absent, illegible, or significantly obscured after OCR attempts, the *entire* `issue date` field must be output as `""`.**
-Do not infer, guess, calculate, or generate this date using *any* information from other fields, including the MRZ, expiry date, date of birth, or document lifespan rules. **The extraction must rely solely on the readable characters within the designated "Date of Issue" area.**
-Contextual interpretation of a clearly legible two-digit year (YY) to determine the century (e.g., deciding between 19YY and 20YY based on the expiry date) is permissible, but *only* if the YY digits themselves are clearly readable in the "Date of Issue" field. This context cannot be used to guess a missing or illegible year or any other part of the date.
-The final validated value (if readable) must be formatted as DD/MM/YYYY and must logically precede the expiry date (if both are present and valid).
+Format: The issue date must be extracted in DD/MM/YYYY format.
+Strict Requirement:
+Extract only from the designated OCR "Date of Issue" field, exactly as it is labeled on the passport page.
+
+
+The OCR field specifically labeled as "Date of Issue" is the only source for the issue date. No other information or fields can be used to infer or generate the issue date (e.g., not using MRZ data, expiry date, or date of birth).
+
+
+Conditions for Invalid or Missing Data:
+If any part of the date (day, month, or year) within the "Date of Issue" field is absent, illegible, or significantly obscured after OCR attempts, the entire issue date field must be output as empty ("").
+
+
+This includes cases where only part of the issue date (e.g., the day, month, or year) is missing or unreadable in the OCR data.
+
+
+No inference or guesswork is allowed. The issue date must come directly from the OCR data and cannot be constructed or calculated using any other field (such as MRZ, expiry date, or document lifespan rules).
+
+
+Contextual Interpretation of Year (YY):
+If the year is two digits (YY) and the century (i.e., 1900s vs. 2000s) is not explicitly clear from the OCR, you may interpret the century based on context, but only if the two-digit year (YY) is clearly readable in the "Date of Issue" field.
+
+
+Example: If the OCR shows "15/06/20", and the expiry date is far in the future (e.g., 2030), then you can reasonably infer that "20" refers to 2020.
+
+
+However, you cannot guess or infer any part of the date (including the month or year) if it is not directly available in the OCR "Date of Issue" field.
+
+
+Validation with Expiry Date:
+
+
+Once extracted, the issue date must logically precede the expiry date (if both are available and valid).
+
+
+If the issue date is invalid or missing, output "".
 
 
 expiry date 
-DD/MM/YYYY; parse OCR (`original expiry date`) and cross‑check `mrzDateOfExpiry`. **VALIDATION:** If both OCR and MRZ yield valid dates (DD/MM/YYYY format) but they differ, **the `mrzDateOfExpiry` MUST BE USED for the final `expiry date` field.** If the OCR date is invalid or missing, and the `mrzDateOfExpiry` is valid, use `mrzDateOfExpiry`. Ensure final output is DD/MM/YYYY and is logically after `issue date`.
-Example 1:
-Issue Date: 01/01/2020
+Format: The expiry date must be extracted in DD/MM/YYYY format.
 
 
-Expiry Date: 01/01/2030 ✔️ (Correct)
-Example 2:
-Issue Date: 15/06/2022
+Source for Expiry Date:
 
 
-Expiry Date: 14/06/2022 ❌ (Incorrect – expiry date precedes issue date)
-Example 3:
-Issue Date: 17/03/2021
+OCR Source: Extract the expiry date from the field labeled "original expiry date" in the OCR text.
 
 
-Expiry Date: 16/03/2032 ✔️ (Correct)
-Example 4:
-Issue Date: 17/03/2021
+MRZ Source: The expiry date is also available in MRZ Line 2, from positions 22-27 (in YYMMDD format).
 
 
-Expiry Date: 16/03/2072 ❌ (Incorrect – expiry date is greater than issue by more than 20 years)
+Validation Process:
 
 
+Step 1: If both the OCR expiry date and MRZ expiry date are valid (i.e., both are in DD/MM/YYYY format):
+
+
+Step 2: If the OCR expiry date and MRZ expiry date differ, the MRZ date must be used for the final expiry date.
+
+
+Step 3: If the OCR expiry date is invalid or missing, but the MRZ expiry date is valid, use the MRZ expiry date for the final expiry date.
+
+
+Logical Date Check:
+
+
+The final expiry date must be in DD/MM/YYYY format and should be logically after the issue date.
+
+
+If the expiry date is logically before the issue date, or the expiry date is more than 20 years after the issue date, it must be considered invalid.
+
+
+Contextual Interpretation of Year (YY):
+
+
+If the MRZ expiry date is in YYMMDD format (e.g., "2031" as "31"), convert it to DD/MM/YYYY.
+
+
+If the year part is two digits (YY), determine the century based on context, such as the issue date or typical expiry range (e.g., if the issue date is in 2020, interpret "31" as 2031).
 place of issue 
-from OCR. Normalizations:
- • Must be DFA, PCG, or PE:
- • Correct minor OCR noise in prefix/city.
+Source:
+
+
+The place of issue must be extracted from the OCR text, specifically from the field labeled "place of issue" or similar in the passport image.
+
+
+Normalization:
+
+
+Must be DFA, PCG, or PE: The place of issue in Filipino passports must be from one of the following prefixes:
+
+
+DFA: Department of Foreign Affairs
+
+
+PCG: Philippine Consulate General
+
+
+PE: Philippine Embassy
+
+
+Correct Minor OCR Noise:
+
+
+Correct minor OCR errors related to prefix or city names. These may include misinterpreted or incomplete characters in OCR scans.
+
+
+For example:
+
+
+OCR: "DFA CAGAYAN DE ORO" → Correct as "DFA CAGAYAN DE ORO".
+
+
+OCR: "PE RIYADH" → Correct as "PE RIYADH".
+
+
+OCR: "PE PIYADH" → Correct as "PE RIYADH" (fix OCR misinterpretation).
+
+
+OCR: "DFA TUKURAN ZAM DS" → Correct as "DFA TUGUEGARAO ZAMBOANGA DEL SUR" (fix OCR error with city).
+
+
+Place of Issue Should Be Recognized as Valid:
+
+
+The place of issue should be recognized as valid based on the corrected OCR output.
+
+
+If the extracted place of issue includes prefixes like DFA, PCG, or PE followed by a city, it should be accepted as the valid place of issue.
 
 
 country of issue 
-– derive from place of issue: PE/PCG + City:
-Rule: If the "place of issue" begins with "PE" or "PCG" followed by a city name, map it to the corresponding country the city is inside.
+1. Derivation Rules:
+PE/PCG + City Mapping:
+
+
+If the place of issue begins with "PE" or "PCG", followed by a city name, map it to the corresponding country the city is located in.
+
+
 Example:
+
+
 PE DUBAI → UAE
-PE DOHA → Qatar
-PE MANAMA → Bahrain
-PE MOSCOW → Russia
-PE RIYADH → Saudi Arabia
+
+
+PE DOHA → QATAR
+
+
+PE MANAMA → BAHRAIN
+
+
+PE MOSCOW → RUSSIA
+
+
+PE RIYADH → SAUDI ARABIA
+
+
 PCG DUBAI → UAE
-PCG MANILA → Philippines
+
+
+PCG MANILA → PHILIPPINES
+
+
+Invalid Country Mapping:
+
+
+Example of incorrect mappings:
+
+
+PE DUBAI → PHILIPPINES ❌ (Incorrect country)
+
+
+PE DOHA → UAE ❌ (Incorrect country)
+
+
+2. Special Mapping Rules:
+DFA or MECO TAIPEI Mapping:
+
+
+If the place of issue starts with "DFA" or is exactly "MECO TAIPEI", map it to the Philippines.
+
+
 Example:
-PE DUBAI → Phillipines ❌ Wrong Country
-PE DOHA → UAE ❌ Wrong Country
-Starts with DFA or equals MECO TAIPEI: Rule: If the "place of issue" starts with "DFA" or is exactly "MECO TAIPEI," map it to the Philippines.
+
+
+DFA MANILA → PHILIPPINES
+
+
+MECO TAIPEI → TAIWAN
+
+
+PCG City Mapping:
+
+
+For PCG followed by a city:
+
+
+PCG MACAU → CHINA
+
+
+PCG HONG KONG → HONG KONG
+
+
+HMPO Mapping:
+
+
+If the place of issue starts with "HMPO", map it to the United Kingdom.
+
+
 Example:
-DFA MANILA → Philippines
-MECO TAIPEI → Taiwan
-PCG MACAU → China
-PCG HONG KONG → Hong Kong
-HMPO: Rule: If the "place of issue" starts with "HMPO," map it to the United Kingdom.
-Example:
-HMPO LONDON → United Kingdom
-Stand-alone City: 
-Rule: If the "place of issue" is a city on the list of stand-alone cities, map it directly to its corresponding country.
-Cities and their mapped countries: UAE, Oman, Kuwait, Saudi Arabia, Qatar, Singapore, Turkey, Iraq, China, Malaysia, Lebanon, Bahrain, Jordan, etc.
-Example:
+
+
+HMPO LONDON → UNITED KINGDOM
+
+
+3. Stand-Alone City Mapping:
+If the place of issue is a stand-alone city, map it to its corresponding country. This applies to certain cities that are recognized as cities on their own and are internationally recognized as part of specific countries.
+
+
+Example Cities and Mapped Countries:
+
+
 DUBAI → UAE
-DOHA → Qatar
-ISTANBUL → Turkey
-BEIRUT → Lebanon
-MOSCOW → Russia
-RIYADH → Saudi Arabia
-KUWAIT → Kuwait
-BAHRAIN → Bahrain
-HONG KONG → Hong Kong
-CHINA → China
 
 
-Rule: Correct any minor OCR mistakes such as misinterpreted characters, especially in the prefix or city names. This includes fixing missing letters, extra spaces, or incorrectly scanned characters.
+DOHA → QATAR
 
 
-Example:
+ISTANBUL → TURKEY
 
 
-DFA TUKURAN ZAM DS → DFA TUGUEGARAO ZAMBOANGA DEL SUR (Correct OCR mistake for "TUKURAN" to "TUGUEGARAO")
+BEIRUT → LEBANON
 
 
-PE PIYADH → PE RIYADH (Fix OCR misinterpretation of "PIYADH" to "RIYADH")
+MOSCOW → RUSSIA
 
 
-DFA DAVAD → DFA DAVAO (Correct OCR mistake for "DAVAD" to "DAVAO")
+RIYADH → SAUDI ARABIA
+
+
+KUWAIT → KUWAIT
+
+
+BAHRAIN → BAHRAIN
+
+
+HONG KONG → HONG KONG
+
+
+CHINA → CHINA
 
 mother name
-always empty string “” 
+Rule: The mother's name field should always be an empty string ("").
 father name 
-always empty string “” 
+Rule: The father's name field should always be an empty string ("").
 mrzLine1
-full line with < padding
+Rule: Extract the full MRZ Line 1 including the padding < characters.
+
+
+Explanation: MRZ Line 1 is used in the passport to store key data, such as the surname, first name, passport number, and other relevant details. Ensure to preserve the full line exactly as it appears in the OCR, including padding (<).
+
 mrzLine2 
-full line with < padding.
+Rule: Extract the full MRZ Line 2 including the padding < characters.
+
+
+Explanation: MRZ Line 2 contains important information such as date of birth, date of expiry, nationality, and personal identifiers. The full line must be extracted and preserved with the < padding.
 
 
 mrzDateOfBirth
-**Strictly parse from `mrzLine2`.**
-*   **`mrzDateOfBirth`:** Located at character positions 14-19 (YYMMDD format). Map to DD/MM/YYYY
+Source: Strictly parse from mrzLine2.
+Location: The date of birth is located at positions 14-19 in mrzLine2, formatted as YYMMDD.
+Rule: Map the date from YYMMDD format to DD/MM/YYYY format.
+For Example:
+
+
+If mrzLine2 contains "P6102238B8PHL7206166F3101148", the mrzDateOfBirth is "720616".
+
+
+This corresponds to 16/06/1972 (DD/MM/YYYY).
+
+
 mrzDateOfExpiry
-**Strictly parse from `mrzLine2`.**
-*   **`mrzDateOfExpiry`:** Located at character positions 22-27 (YYMMDD format). Map to DD/MM/YYYY
+Source: Strictly parse from mrzLine2.
+Location: The date of birth is located at positions 22-27 in mrzLine2, formatted as YYMMDD.
+Rule: Map the date from YYMMDD format to DD/MM/YYYY format.
+For Example:
+
+
+If mrzLine2 contains "P6102238B8PHL7206166F3101148", the mrzDateOfBirth is "720616".
+
+
+This corresponds to 16/06/1972 (DD/MM/YYYY).
 
 
 original number
-unmodified OCR substrings
+Source: Extract the raw, unmodified OCR substring representing the passport number.
+Explanation: The original number should be preserved exactly as it appears in the OCR text, even if it is invalid or rejected later. This field contains the raw OCR token before any validation or modification takes place.
+Example: If the OCR output is "P6102238B", then original number will be "P6102238B".
 original country
-unmodified OCR substrings
+Source: Extract the raw, unmodified OCR substring for the country code.
+Explanation: This field should contain the unmodified OCR country code exactly as it appears.
+Example: If the OCR text is "PHL" for the Philippines, the original country will be "PHL".
 original birth date
-Convert to DD/MM/YYYY format.
+Source: Extract the raw, unmodified OCR substring for the birth date.
+Rule: The original birth date should be converted to DD/MM/YYYY format.
+Example: If the OCR text is "16/06/1972", the original birth date will be "16/06/1972" after conversion (if it's already in valid format, no changes are needed).
 original gender
-unmodified OCR substrings
+Source: Extract the raw, unmodified OCR substring for the gender field.
+Explanation: This field should contain the raw OCR gender token exactly as it appears.
+Example: If the OCR output is "F" (Female), then original gender will be "F".
 original expiry date 
-Convert to DD/MM/YYYY format.
+Source: Extract the raw, unmodified OCR substring for the expiry date.
+Rule: The original expiry date should be converted to DD/MM/YYYY format.
+Example: If the OCR text is "14/01/2031", the original expiry date will be "14/01/2031" after conversion (if it's already in valid format, no changes are needed).
 
 
- • Cleaned counterparts (birth date, expiry date) must be DD/MM/YYYY.
+<User>
 
 
-VALIDATION & RECONCILIATION
-
-
-Source priority: if only one source validates, use it; if both validate but differ, keep MRZ.
-
-
-Passport number in JSON must equal MRZ characters 1‑9 when both are valid.
-
-
-Date sanity: expiry date > issue date ≥ birth date; reject impossible dates (set "").
-
-
-OUTPUT FORMAT
-
-
-Return one prettified JSON object containing all keys listed above and nothing else.
-
-
-Preserve the exact key order shown below for consistency:
-
-
-{{
- "original number": "",
- "number": "",
- "original country": "",
- "country": "",
- "name": "",
- "surname": "",
- "middle name": "",
- "original gender": "",
- "gender": "",
- "place of birth": "",
- "original birth date": "",
- "birth date": "",
- "issue date": "",
- "original expiry date": "",
- "expiry date": "",
- "mother name": "",
- "father name": "",
- "place of issue": "",
- "country of issue": "",
- "mrzLine1": "",
- "mrzLine2": "",
- "mrzPassportNumber": "",
- "mrzDateOfBirth": "",
- "mrzDateOfExpiry": "",
- "mrzSex": "",
- "mrzSurname": "",
- "mrzGivenNames": ""
-}}
-ROBUSTNESS & COMPLIANCE
-
-
-Handle OCR noise, diacritics, security fonts, multilingual labels, and all passport layouts.
-
-
-Never fabricate data—unknown → "".
-
-
-Process everything in‑memory; purge all PII immediately after JSON delivery.
-
-
-Fully comply with ICAO 9303 and GDPR.
-
-
-
-User Message:
-
-Please extract and return the data in exactly the JSON structure below (no extra keys, no extra text). Notice that we've added the new "original ..." fields for the five variables mentioned in Additional Requirement:
+Please extract and return the data in exactly the JSON structure below (no extra keys, no extra text). 
 {{
  "original number": "",
  "number": "",
@@ -588,310 +1000,4 @@ Please extract and return the data in exactly the JSON structure below (no extra
  "mrzGivenNames": ""
 }}
 
-<Instructions> 
-RULES – VALIDATION, CORRECTION & FORMATTING
-
-### Rule 1 – Output Format
-Return one prettified JSON object and nothing else.
-
-
-### Rule 2 – Nationality Precedence
-Apply Philippines / Ethiopia / Kenya rules first.
-
-
-For every other passport, follow the global and remaining nationality‑specific rules.
-
-
-### Rule 3 – Place‑of‑Birth Fidelity
-Never rewrite a place of birth from your own knowledge.
-
-
-Copy exactly what OCR (or nationality rule) provides.
-
-
-### Rule 4 – Special Characters in Names
-Replace every hyphen -, slash /, single angle bracket <, or other special character in any name (people or regions) with a single space.
-
-
-### Rule 5 – Diacritic Removal
-Strip all diacritical marks from names.
-Á, À, Â, Ä, Ã, Å, Æ → A
-
-
-É, È, Ê, Ë → E
-
-
-Í, Ì, Î, Ï → I
-
-
-Ó, Ò, Ô, Ö, Õ, Ø → O
-
-
-Ú, Ù, Û, Ü → U
-
-
-Ç → C
-
-
-Ñ → N
-
-
-Ý, Ì, Î, Ï → Y
-
-
-Ž, Ž → Z
-
-
-Š, Š́, Š → S
-
-
-Ł → L
-
-
-Ř, Œ → R
-Examples
-CAMPAÑERO → CAMPANERO
-
-
-JOSÉ → JOSE
-
-
-BÜCHER → BUCHER
-
-
-
-## Rule 6 – Validate the "name" Field
-Compare OCR "name" with "mrzGivenNames".
-
-
-Use mrzGivenNames only if it is:
-
-
-Non‑empty,
-
-
-Longer than one character,
-
-
-Not unreadable (e.g., not just <).
-
-
-If both strings are present and differ → replace "name" with mrzGivenNames.
-
-
-Final clean‑up for either source:
-
-
-Remove diacritics.
-
-
-Hyphen → space; apostrophe → removed.
-
-
-Trim extra spaces.
-
-
-#### JSON Scenarios
-{{
-  "name": "JANE DOE",
-  "mrzGivenNames": "JANE DOE"
-}}
-
-✅ keep "name" unchanged
-{{
-  "name": "SELAMAWIT BERHIE",
-  "mrzGivenNames": "SELAMAWIT BERIHIE"
-}}
-
-✅ replace "name" → "SELAMAWIT BERIHIE"
-{{
-  "name": "RAHUL",
-  "mrzGivenNames": "<"
-}}
-
-✅ keep OCR "name" – MRZ unreadable
-
-## Rule 7 – Validate the "number" Field
-Compare "number" with "mrzPassportNumber".
-
-
-If MRZ value is valid (correct length & format):
-
-
-If different → overwrite "number" with MRZ value.
-
-
-If identical → keep.
-
-
-If MRZ has 10 chars, trim to first 9 before comparison.
-
-
-If MRZ invalid/empty → keep OCR number.
-
-
-#### Key JSON Examples
-{{
-  "number": "EP7044668",
-  "mrzPassportNumber": "EP7044688"
-}}
-
-✅ "number" becomes "EP7044688"
-
-## Rule 8 – Issue Date Integrity
-Extract only from the OCR “Date of Issue” line.
-
-
-Convert to DD/MM/YYYY.
-
-
-Never adjust based on MRZ or expiry date.
-
-
-If missing → "".
-
-
-
-## Rule 9 – Expiry Date Validation
-Compare OCR "expiry date" with mrzDateOfExpiry.
-
-
-If they differ and MRZ is present/valid → replace with MRZ value.
-
-
-Store the raw OCR string (after conversion to DD/MM/YYYY) in "original expiry date".
-
-
-
-## Rule 10 – Middle‑Name Handling
-Use exactly what OCR shows (diacritic, period, hyphen, apostrophe clean‑up only).
-
-
-Filipino passports: middle name comes solely from the dedicated OCR field.
-
-
-If missing/unreadable → "".
-
-
-Never invent or translate a middle name.
-
-
-
-## Rule 11 – Surname Handling
-Take surname exactly from OCR; if unreadable/missing, fall back to MRZ.
-
-
-Merge multi‑line surnames.
-
-
-Hyphen/apostrophe → space; remove diacritics.
-
-
-Do not override a valid OCR surname with MRZ spelling differences.
-
-
-
-## Rule 12 – Issue‑vs‑Expiry Mix‑Up Guard
-The issue date must come strictly from the “Date of Issue” field.
-
-
-Do not mix day/month/year parts with expiry data.
-
-
-Example error to avoid:
-Date of Issue ... 13 APR 24
-Date of Expiry .. 12 APR 29
-
-✅ correct issue date → 13/04/2024
- ❌ wrong issue date → 12/04/2024
-
-## Rule 13 – Universal Date Format
-Every date (birth date, issue date, expiry date, original birth date, original expiry date) must be DD/MM/YYYY.
-
-
-Convert textual months; expand two‑digit years: "93" → 1993, "29" → 2029.
-
-
-Examples:
-29 OCT 93 → 29/10/1993
-
-
-21 JUL 29 → 21/07/2029
-
-
-</Rules>
-Here’s the Passport Image:
-
-**Final Validation and JSON Generation Process (Two-Pass OCR):**
-
-Define Pre-requisites:
-Input: input_image (The fully pre-processed passport image).
-Configuration: Load Master Prompt rules, Nationality-Specific rules (if nationality is known or can be inferred early), and the specified high-accuracy OCR engine settings.
-Target Fields: Identify the complete list of JSON fields to be extracted.
-OCR Pass 1: Initial Extraction
-Action: Execute the highest-accuracy OCR engine on the input_image.
-Extraction: Attempt to extract data for all target JSON fields based on layout rules, keywords, and patterns defined in the Master Prompt and relevant Nationality-Specific rules.
-Initial Cleaning: Apply basic, universal cleaning to raw OCR output for each field:
-Trim leading/trailing whitespace.
-Normalize whitespace within the string (e.g., replace multiple spaces with a single space).
-Perform predefined, safe character substitutions (e.g., O -> 0, I -> 1 only if contextually appropriate and defined in rules, potentially handling common OCR misreads for specific characters like ° -> O).
-Output: Store the results in a temporary structure: OCR_Result_Pass1 (e.g., a dictionary mapping field names to cleaned string values).
-Validation Pass 1: Field-Level Check
-Action: For each field present in OCR_Result_Pass1:
-Retrieve the corresponding value.
-Validate it against all applicable rules from the Master Prompt and Nationality-Specific sections. This includes:
-Format: (e.g., DD/MM/YYYY for dates, specific character sets like A-Z, 0-9).
-Length: (e.g., fixed length, min/max length).
-Content: (e.g., valid country codes, gender codes (M/F/X), checksums internal to the field if applicable, valid character ranges).
-Consistency (Non-MRZ): (e.g., Date of Expiry > Date of Issue).
-Crucially Exclude: Do not perform MRZ cross-validation at this stage.
-Output: Store the validation outcomes in Validation_Status_Pass1. This should map each field name to a status object, e.g., {{ isValid: boolean, reason: string | null }}. isValid is True if all checks pass, False otherwise. reason can optionally store the first validation rule that failed. Handle fields missing from OCR_Result_Pass1 as isValid: False, reason: "Missing".
-OCR Pass 2: Secondary Extraction
-Action: Re-execute the exact same highest-accuracy OCR engine configuration on the exact same input_image used in Step 2. (Re-running ensures potential variations in OCR engine behavior, even if slight, are captured).
-Extraction: Repeat the extraction process as in Step 2.
-Initial Cleaning: Apply the exact same cleaning rules as in Step 2.
-Output: Store the results in a temporary structure: OCR_Result_Pass2.
-Validation Pass 2: Field-Level Check
-Action: Repeat the validation process exactly as described in Step 3, but using OCR_Result_Pass2 as input.
-Crucially Exclude: Again, do not perform MRZ cross-validation.
-Output: Store the validation outcomes in Validation_Status_Pass2 (using the same format as Validation_Status_Pass1).
-Field-Level Consolidation based on Validation Status
-Action: Create the primary consolidated data set, Consolidated_Data, and a corresponding status tracker, Consolidated_Status. Iterate through all target JSON fields defined in the Master Prompt. For each field_name:
-Retrieve value1 from OCR_Result_Pass1 and status1 from Validation_Status_Pass1.
-Retrieve value2 from OCR_Result_Pass2 and status2 from Validation_Status_Pass2.
-Apply Consolidation Logic:
-Case 1: Pass 1 Valid, Pass 2 Invalid:
-Consolidated_Data[field_name] = value1
-Consolidated_Status[field_name] = {{ isValid: True, source: 'Pass1', needs_review: False }}
-Case 2: Pass 1 Invalid, Pass 2 Valid:
-Consolidated_Data[field_name] = value2
-Consolidated_Status[field_name] = {{ isValid: True, source: 'Pass2', needs_review: False }}
-Case 3: Both Passes Valid:
-Consolidated_Data[field_name] = value1 (Prioritize Pass 1 result)
-Consolidated_Status[field_name] = {{ isValid: True, source: 'Pass1 (Both Valid)', needs_review: False }}
-(Optional Refinement: If value1 == value2, mark as higher confidence).
-Case 4: Both Passes Invalid (or Missing):
-Consolidated_Data[field_name] = value1 (Tentatively use Pass 1, even if invalid or null/missing)
-Consolidated_Status[field_name] = {{ isValid: False, source: 'Pass1 (Both Invalid)', needs_review: True, reason1: status1.reason, reason2: status2.reason }} (Store reasons for potential later use/debugging).
-Output: Consolidated_Data (dictionary of field names to chosen values) and Consolidated_Status (dictionary tracking validity, source, and review need for each field).
-
-6.  **MRZ Extraction & Validation:**
-    *   Extract `mrzLine1` and `mrzLine2` from the best available OCR result (e.g., Pass 1, or whichever pass yielded clearer MRZ lines if discernible).
-    *   Parse and validate the MRZ fields: `mrzPassportNumber`, `mrzDateOfBirth`, `mrzDateOfExpiry`, `mrzSex`, `mrzSurname`, `mrzGivenNames` according to ICAO 9303 and any specific nationality rules.
-
-7.  **Final Cross-Validation & Reconciliation (using `Data_Consolidated` and MRZ):**
-    *   Now, apply the critical comparisons between the consolidated visual zone data (`Data_Consolidated`) and the validated MRZ data:
-        *   **Priority Rule:** For fields present in both zones (`number`, `country`, `surname`, `name`, `gender`, `birth date`, `expiry date`), if the consolidated OCR value *and* the MRZ-derived value are *both valid* but *differ*, **the validated MRZ value takes precedence** and overwrites the value in `Data_Consolidated`.
-        *   **Correction Rule:** If the consolidated OCR value for an overlapping field is *invalid* (i.e., both Pass 1 and Pass 2 failed initial validation), but the corresponding MRZ value *is* valid, use the valid MRZ value to correct the field in `Data_Consolidated`.
-        *   **Issue Date Fidelity:** Re-confirm that the `issue date` in `Data_Consolidated` originated *only* from its designated OCR field (as determined in Step 5). If it failed validation in both passes, it remains invalid unless corrected by a *different* rule (which shouldn't happen for `issue date`). It cannot be filled from MRZ.
-        *   **Apply Final Cleaning:** Perform final normalization like diacritic removal and special character replacement (`-`, `'` -> space) on name fields *after* reconciliation.
-
-8.  **Date Sanity Check:**
-    *   Verify the logical order in `Data_Consolidated`: `birth date` <= `issue date` < `expiry date`.
-    *   If this check fails, prioritize keeping the MRZ dates (if valid) and set the conflicting OCR-only date (`issue date`) to `""` if it's the definite source of the conflict and couldn't be validated.
-
-9.  **Final JSON Construction:**
-    *   Assemble the final JSON object using the values from `Data_Consolidated` after all validation, reconciliation, and sanity checks.
-    *   **Invalid/Missing Data:** Any field that remains invalid after all steps **must** have its value set to `""`. This includes fields where the primary OCR source was unusable in both passes and no valid MRZ correction was applicable.
-    *   **Structure and Order:** Ensure the output strictly adheres to the specified JSON key order and structure.
-Return *only* the final, validated JSON object. Reply with json now
+Here is the passport image. reply with json now

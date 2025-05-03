@@ -33,10 +33,10 @@ def edit_agent_value(value, field):
         return pd.to_datetime(value).strftime('%d/%m/%Y')
 
     elif str(field).strip().upper() == "NATIONALITY":
-        return "IND"
+        return "PHL"
     
-    elif str(field).strip().upper() == "MOTHER NAME":
-        return value.split()[0]
+    elif str(field).strip().upper() == "MOTHER NAME" or str(field).strip().upper() == "FATHER NAME":
+        return ""
 
     elif str(field).strip().upper() == "GENDER":
         return value[0]
@@ -97,8 +97,8 @@ def upload_results(csv_file_path: str, spreadsheet_id: str, credentials_path: st
         "Country of Issue": "outputs.country of issue",
         "First Name": "outputs.name",
         "Gender": "outputs.gender",
-        "Last Name": "outputs.father name",
-        "Middle Name": "outputs.surname",
+        "Last Name": "outputs.surname",
+        "Middle Name": "outputs.middle name",
         "Mother Name": "outputs.mother name",
         "Nationality": "outputs.country",
         "Passport Expiry Date": "outputs.expiry date",
