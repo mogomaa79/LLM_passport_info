@@ -135,14 +135,9 @@ country
 ISO 3166‑1 alpha‑3 code from OCR or MRZ: Always Use “KEN” for country field
 
 
-name 
+name
 Put the Entire Given Name in First Name:
-First Name:
-
-
 Put the entire given name in First Name (keep all given names together).
-
-
 Examples:
 Given Names: BEATRICE NTHENYA
 
@@ -176,7 +171,7 @@ MRZ Given Names: GLADYS AOKO
 First Name → GLADYS AOKO ✅
 
 
-7. MRZ Reference Formats (Read-Only, for Validation)
+MRZ Reference Formats (Read-Only, for Validation)
 mrzLine1 (Kenyan Passports)
 General Shape:
  P<KEN[SURNAME]<<[GIVEN NAMES]<<<…
@@ -217,62 +212,42 @@ Expiry Date (in YYMMDD format).
 
 
 Additional information such as nationality, document number, etc.
+Replace Special Symbols with a Space:
+Rule:
+Replace special symbols like semicolon (;), apostrophes ('), backticks ( `), or any other symbols that might appear in the name or MRZ fields with a single space.
+Examples:
+DORAH MKANG'OMBE→ DORAH MKANG OMBE
 
+
+GLADYS' AOKO → GLADYS AOKO
+
+
+KEMGLADYSAOKO→KEMGLADYS AOKO`
 
 
 surname 
-Extract Surname from OCR:
-Capture the surname from the OCR text.
+Extract two versions
+OCR surname (from the printed Surname label).
+MRZ surname (from mrzLine1 before the first <).
+Decision rules
+If the MRZ surname is a single word (no spaces or hyphens) and the OCR surname has multiple words, always choose the OCR surname.
+		Example: MRZ NGANGA vs OCR NG'ANG'A → use NG ANG A.
 
 
-Clean the OCR Surname:
-Replace hyphens ("‑") with spaces.
-
-
-Remove apostrophes.
-
-
-Strip diacritics from all characters.
-
-
-Non-Latin Characters:
-Translate non-Latin characters into their English equivalents (e.g., "Ñ" → "N").
-
-
-Replace Special Characters:
-Replace special characters such as:
-
-
-Hyphens ("‑") with spaces.
-
-
-Slashes ("/") with spaces.
-
-
-Parentheses ("( )") with spaces.
-
-
-Extract Surname from MRZ Line 1:
-Capture the surname from MRZ Line 1, specifically from positions 6 to the first <<.
-
-
-Replace < characters with spaces.
-
-
-Critical Comparison:
-Compare the cleaned OCR surname with the cleaned MRZ surname.
-
-
-If the MRZ surname is valid and differs from the cleaned OCR surname, use the MRZ surname for the final surname.
-
-
-If the OCR surname is unreadable or missing, use the MRZ surname.
-
-
+If the OCR surname is split across two physical lines, merge them with a space.
 Example:
-OCR surname: YAE HAILE
-MRZ surname: HAILE
-Surname: Use HAILE ✅
+OCR line1: ONG
+OCR line2: ERA
+ becomes ONG ERA.
+If both versions contain multiple words, choose the MRZ surname.
+
+
+If both versions are single words, choose the MRZ surname.
+
+
+Cleaning
+Replace apostrophes ' and hyphens - with spaces, then collapse multiple spaces.
+Do not change letter order or add diacritics.
 middle name
 Always keep middle name as empty string (“”)
 gender 
