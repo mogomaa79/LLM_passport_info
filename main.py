@@ -18,8 +18,8 @@ LANGSMITH_API_KEY = os.getenv("LANGSMITH_API_KEY")
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
-DATASET_NAME = "Philippines"
-IMAGE_PATH = "data/indian/indian_yes"
+DATASET_NAME = "Ethiopia"
+IMAGE_PATH = "data/ethiopian/ethiopian_yes"
 
 MODEL = "gemini-2.0-flash"
 GOOGLE_SHEETS_CREDENTIALS_PATH = "credentials.json"
@@ -70,17 +70,18 @@ def main():
             correct += outputs["expiry date"] == convert(reference_outputs["passport expiry date"])
             correct += outputs["issue date"] == convert(reference_outputs["passport issue date"])
             correct += outputs["birth date"] == convert(reference_outputs["birthdate"])
-            correct += outputs["place of issue"] == reference_outputs["passport place(en)"]
+            correct += outputs["place of issue"] == "ETHIOPIA"
             correct += outputs["place of birth"] == reference_outputs["birth place"]
-            correct += outputs["country of issue"] == reference_outputs["country of issue"]
-            correct += outputs["country"] == "PHL"
+            correct += outputs["country of issue"] == "ETHIOPIA"
+            correct += outputs["country"] == "ETH"
             correct += outputs["gender"] == reference_outputs["gender"][0]
             correct += outputs["name"] == reference_outputs["first name"]
             correct += outputs["father name"] == ""
             correct += outputs["mother name"] == ""
-            correct += outputs["middle name"] == reference_outputs["middle name"]
+            correct += outputs["middle name"] == ""
             correct += outputs["surname"] == reference_outputs["last name"]
             return correct / 14
+        
         except Exception as e:
             print(f"\nAn error occurred during field matching: {e}")
             traceback.print_exc()
