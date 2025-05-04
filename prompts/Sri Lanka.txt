@@ -99,7 +99,8 @@ First Name → MADUSHANI KAUSHALYA SANJEEWAN JAYATHISSA ✅
 
 surname 
 Rule: Extract and Clean Surname
-Locate mrzLine1.
+Locate mrzLine1:
+ Identify mrzLine1 in the passport.
 
 
 Extract the Substring:
@@ -107,103 +108,63 @@ Extract the Substring:
 
 
 Replace Single Arrows <:
- Within that substring, replace each single arrow < with a space.
+
+
+Within that substring, replace each single arrow < with a space.
 
 
 Collapse Multiple Spaces:
  After replacing the arrows, collapse multiple spaces into one.
 
 
-If "LKA" appears in the surname (following the country code or in the middle of the name), remove it. This happens because "LKA" represents Sri Lanka, which should not be part of the surname.
+Remove "LKA" from Surname:
+ If the MRZ surname begins with "LKA" or “KA” (especially at the start), remove "LKA" from the MRZ surname.
 
 
 Preserve the Resulting String:
  Do not translate, reorder, or remove any words.
- Preserve the cleaned string verbatim as the surname.
+
+
+Preserve the cleaned string verbatim as the surname.
 
 
 
-Examples
+Examples:
 Example 1:
 
 
-Substring before <<: PORAMA<MANNAGE
+Substring before <<: LKATHUPPAHIGE
 
 
-After converting < to space: PORAMA MANNAGE
+After removing "LKA": THUPPAHIGE
 
 
-Surname: PORAMA MANNAGE
-
-
+Surname: THUPPAHIGE ✅
 Example 2:
+Substring before <<: PALKATHUNDOHAKARA GEDARA
 
 
-Substring before <<: WIKRAMA<HENALAGE
+After removing "LKA": THUNDOHAKARA GEDARA
 
 
-After converting < to space: WIKRAMA HENALAGE
-
-
-Surname: WIKRAMA HENALAGE
-
-
+Surname: THUNDOHAKARA GEDARA ✅
 Example 3:
-
-
-Substring before <<: MADIGAPOLA<LEKAMGE
-
-
-After converting < to space: MADIGAPOLA LEKAMGE
-
-
-Surname: MADIGAPOLA LEKAMGE
-
-
-Example 4:
-
-
-mrzLine1: PALKAHERATH<MUDIYANSELAGE<<IRESHA<GUNESEKARA
-
-
-Substring before <<: PALKAHERATH<MUDIYANSELAGE
-
-
-After converting < to space: PALKAHERATH MUDIYANSELAGE
+Substring before <<: PALKAHERATH MUDIYANSELAGE
 
 
 After removing "LKA": HERATH MUDIYANSELAGE
 
 
-Surname: HERATH MUDIYANSELAGE
+Surname: HERATH MUDIYANSELAGE ✅
 
 
-Example 5:
 
-
-mrzLine1: PBLKADEHIGAMA RALALAGE<<NILANKA PRIYANGI<<<<
-
-
-Substring before <<: PBLKADEHIGAMA RALALAGE
-
-
-After converting < to space: PBLKADEHIGAMA RALALAGE
-
-
-After removing "LKA": DEHIGAMA RALALAGE
-
-
-Surname: DEHIGAMA RALALAGE
-
-
-Compliance Reminder
+Compliance Reminder:
 Transform only single < characters into spaces; all other formatting should remain intact.
 
 
 Upper-casing or global space-normalization (if any) should follow the master prompt's convention.
 
-
-After processing, ensure that temporary parsing strings and logs are purged to comply with GDPR.
 
 
 middle name
