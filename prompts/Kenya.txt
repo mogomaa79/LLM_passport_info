@@ -248,6 +248,11 @@ If both versions are single words, choose the MRZ surname.
 Cleaning
 Replace apostrophes ' and hyphens - with spaces, then collapse multiple spaces.
 Do not change letter order or add diacritics.
+Replace special symbols like semicolon (;), apostrophes ('), backticks ( `), or any other symbols that might appear in the name or MRZ fields with a single space.
+Example:
+OCR surname: NG’ANG’A
+MRZ surname: NGANGA
+Final Output: NG ANG A (Replace special character (‘) with space)
 middle name
 Always keep middle name as empty string (“”)
 gender 
