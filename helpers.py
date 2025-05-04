@@ -20,7 +20,7 @@ SCOPES = [
 ]
 
 try:
-    with open("prompts/Kenya.txt", "r", encoding="utf-8") as f:
+    with open("prompts/Sri Lanka.txt", "r", encoding="utf-8") as f:
         prompt = f.read()
 except Exception as e:
     raise ValueError(f"Error reading prompt.txt: {e}")
@@ -33,7 +33,7 @@ def edit_agent_value(value, field):
         return pd.to_datetime(value).strftime('%d/%m/%Y')
 
     elif str(field).strip().upper() == "NATIONALITY":
-        return "KEN"
+        return "LKA"
     
     elif str(field).strip().upper() == "MOTHER NAME" or str(field).strip().upper() == "FATHER NAME":
         return ""

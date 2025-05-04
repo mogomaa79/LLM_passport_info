@@ -18,8 +18,8 @@ LANGSMITH_API_KEY = os.getenv("LANGSMITH_API_KEY")
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
-DATASET_NAME = "Kenya"
-IMAGE_PATH = "data/kenyan/kenyan_yes"
+DATASET_NAME = "Sri Lanka"
+IMAGE_PATH = "data/sri_lankan/sri_lankan_yes"
 
 MODEL = "gemini-2.0-flash"
 GOOGLE_SHEETS_CREDENTIALS_PATH = "credentials.json"
@@ -72,8 +72,8 @@ def main():
             correct += outputs["birth date"] == convert(reference_outputs["birthdate"])
             correct += outputs["place of issue"] == reference_outputs["passport place(en)"]
             correct += outputs["place of birth"] == reference_outputs["birth place"]
-            correct += outputs["country of issue"] == "KENYA"
-            correct += outputs["country"] == "KEN"
+            correct += outputs["country of issue"] == reference_outputs["country of issue"]
+            correct += outputs["country"] == "LKA"
             correct += outputs["gender"] == reference_outputs["gender"][0]
             correct += outputs["name"] == reference_outputs["first name"]
             correct += outputs["father name"] == ""
