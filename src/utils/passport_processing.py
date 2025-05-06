@@ -1,31 +1,10 @@
 import re
 from unidecode import unidecode
 import pandas as pd
-from langchain_core.messages import HumanMessage
 from src.utils.place_validator import PlaceValidator
+from datetime import datetime
 
-DATASET_NAME = "Kenya"
 place_validator = PlaceValidator()
-
-def get_prompt():
-    """Load the prompt for a specific country"""
-    try:
-        with open(f"prompts/{DATASET_NAME}.txt", "r", encoding="utf-8") as f:
-            return f.read()
-    except Exception as e:
-        raise ValueError(f"Error reading prompt file for {DATASET_NAME}: {e}")
-
-def map_input_to_messages_lambda(inputs: dict):
-    """Convert inputs to LangChain messages format"""
-    multimodal_prompt = inputs.get("multimodal_prompt")
-    prompt_text = get_prompt()
-    
-    multimodal_prompt.insert(0, {"type": "text", "text": prompt_text})
-    messages = [
-        HumanMessage(content=multimodal_prompt),
-    ]
-    
-    return messages
 
 def postprocess(json_data):
     formatted_data = dict(json_data)
@@ -71,7 +50,19 @@ def postprocess(json_data):
             
                 given_names = name_part[names_start:].replace("<", " ").strip()
                 if given_names:
-                    formatted_data["name"] = given_names
+                    original_name = formatted_data.get("name", "")
+                    if original_name:
+                        clean_original = re.sub(r'[^\w\s]', '', original_name).upper().replace(" ", "")
+                        clean_mrz = re.sub(r'[^\w\s]', '', given_names).upper().replace(" ", "")
+                        
+                        max_mrz_chars = len(name_part) - names_start
+                        
+                        if clean_original == clean_mrz or (len(clean_original) > len(clean_mrz) and len(clean_original) > max_mrz_chars):
+                            pass
+                        else:
+                            formatted_data["name"] = given_names
+                    else:
+                        formatted_data["name"] = given_names
     
 
     if len(mrz_line2) >= 10:
@@ -135,6 +126,40 @@ def postprocess(json_data):
         birth_place_result = place_validator.validate_place(birth_place, country)
         if birth_place_result["is_valid"]:
             formatted_data["place of birth"] = birth_place_result["matched_name"]
+    
+    birth_date_str = formatted_data.get("birth date")
+    expiry_date_str = formatted_data.get("expiry date")
+    issue_date_str = formatted_data.get("issue date")
+    
+    if birth_date_str and expiry_date_str and issue_date_str:
+        try:
+            birth_date = pd.to_datetime(birth_date_str, dayfirst=True)
+            expiry_date = pd.to_datetime(expiry_date_str, dayfirst=True)
+            issue_date = pd.to_datetime(issue_date_str, dayfirst=True)
+            
+            # Check logical date relationships
+            valid_issue_date = birth_date < issue_date < expiry_date
+            
+            # If issue date is wrong, check if any of our dates were interchanged
+            if not valid_issue_date:
+                # Possible alternative date fields
+                alt_date_fields = ["original birth date", "original expiry date", "mrzDateOfBirth", "mrzDateOfExpiry"]
+                
+                # Check if issue date is actually birth date or after expiry (both invalid)
+                if issue_date <= birth_date or issue_date >= expiry_date:
+                    # Check specific known date fields for a valid issue date
+                    for field in alt_date_fields:
+                        if field in formatted_data:
+                            try:
+                                other_date = pd.to_datetime(formatted_data[field], dayfirst=True)
+                                # If this date is between birth and expiry, it's likely the real issue date
+                                if birth_date < other_date < expiry_date:
+                                    formatted_data["issue date"] = other_date.strftime('%d/%m/%Y')
+                                    break
+                            except:
+                                pass
+        except:
+            pass
     
     # Format string fields
     for field in string_fields:

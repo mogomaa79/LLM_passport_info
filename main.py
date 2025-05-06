@@ -6,16 +6,14 @@ from dotenv import load_dotenv
 import pandas as pd
 from json.decoder import JSONDecodeError
 
-from src.data_loaders import DataLoader
-from src.models import PassportExtraction
-from src.utils import (
-    map_input_to_messages_lambda, save_results,
-    upload_results, postprocess
-)
+from src.data_loader import DataLoader
+from src.passport_extraction import PassportExtraction
+from src.utils import (save_results, upload_results, postprocess)
 
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.runnables import RunnableLambda
 from langsmith import Client, evaluate
+from langchain_core.messages import HumanMessage
 from langchain_core.output_parsers import JsonOutputParser
 
 load_dotenv()
@@ -32,6 +30,57 @@ GOOGLE_SHEETS_CREDENTIALS_PATH = "credentials.json"
 SPREADSHEET_ID = "1ljIem8te0tTKrN8N9jOOnPIRh2zMvv2WB_3FBa4ycgA"
 PROJECT_NAME = f"{DATASET_NAME} - {MODEL} - {random.randint(0, 100)}"
 ADD_DATA = False
+
+def get_prompt():
+    """Load the prompt for a specific country"""
+    try:
+        with open(f"prompts/{DATASET_NAME}.txt", "r", encoding="utf-8") as f:
+            return f.read()
+    except Exception as e:
+        raise ValueError(f"Error reading prompt file for {DATASET_NAME}: {e}")
+
+def map_input_to_messages_lambda(inputs: dict):
+    """Convert inputs to LangChain messages format"""
+    multimodal_prompt = inputs.get("multimodal_prompt")
+    prompt_text = get_prompt()
+    
+    multimodal_prompt.insert(0, {"type": "text", "text": prompt_text})
+    messages = [
+        HumanMessage(content=multimodal_prompt),
+    ]
+    
+    return messages
+
+def field_match(outputs: dict, reference_outputs: dict) -> float:
+    try:
+        if "reference_output" in reference_outputs:
+            reference_outputs = reference_outputs["reference_output"]
+        convert = lambda value: pd.to_datetime(value).strftime('%d/%m/%Y') if pd.to_datetime(value, errors='coerce') is not pd.NaT else value
+        correct = 0
+        correct += outputs["number"] == reference_outputs["passport id"]
+        correct += outputs["expiry date"] == convert(reference_outputs["passport expiry date"])
+        correct += outputs["issue date"] == convert(reference_outputs["passport issue date"])
+        correct += outputs["birth date"] == convert(reference_outputs["birthdate"])
+        correct += outputs["place of issue"] == reference_outputs["passport place(en)"]
+        correct += outputs["place of birth"] == reference_outputs["birth place"]
+        correct += outputs["country of issue"] == reference_outputs["country of issue"]
+        correct += outputs["country"] == "KEN"
+        correct += outputs["gender"] == reference_outputs["gender"][0]
+        correct += outputs["name"] == reference_outputs["first name"]
+        correct += outputs["father name"] == ""
+        correct += outputs["mother name"] == ""
+        correct += outputs["middle name"] == ""
+        correct += outputs["surname"] == reference_outputs["last name"]
+
+        return correct / 14
+    
+    except Exception as e:
+        print(f"\nAn error occurred during field matching: {e}")
+        traceback.print_exc()
+        return 0
+
+def full_passport(outputs: dict, reference_outputs: dict) -> bool:
+    return field_match(outputs, reference_outputs) == 1      
 
 def main():
     client = Client(api_key=LANGSMITH_API_KEY)
@@ -65,50 +114,18 @@ def main():
         return runnable | llm_retry | json_parser | RunnableLambda(postprocess)
 
     print(f"\nStarting run on dataset '{DATASET_NAME}' with project name '{PROJECT_NAME}'...")
-    
-    def field_match(outputs: dict, reference_outputs: dict) -> float:
-        try:
-            if "reference_output" in reference_outputs:
-                reference_outputs = reference_outputs["reference_output"]
-            convert = lambda value: pd.to_datetime(value).strftime('%d/%m/%Y') if pd.to_datetime(value, errors='coerce') is not pd.NaT else value
-            correct = 0
-            correct += outputs["number"] == reference_outputs["passport id"]
-            correct += outputs["expiry date"] == convert(reference_outputs["passport expiry date"])
-            correct += outputs["issue date"] == convert(reference_outputs["passport issue date"])
-            correct += outputs["birth date"] == convert(reference_outputs["birthdate"])
-            correct += outputs["place of issue"] == reference_outputs["passport place(en)"]
-            correct += outputs["place of birth"] == reference_outputs["birth place"]
-            correct += outputs["country of issue"] == reference_outputs["country of issue"]
-            correct += outputs["country"] == "KEN"
-            correct += outputs["gender"] == reference_outputs["gender"][0]
-            correct += outputs["name"] == reference_outputs["first name"]
-            correct += outputs["father name"] == ""
-            correct += outputs["mother name"] == ""
-            correct += outputs["middle name"] == ""
-            correct += outputs["surname"] == reference_outputs["last name"]
 
-            return correct / 14
+    def target(inputs: dict) -> dict:
+        if "multimodal_prompt" not in inputs:
+            inputs = inputs["inputs"]
+        if "multimodal_prompt" not in inputs:
+            raise ValueError("Missing 'multimodal_prompt' in inputs")
         
-        except Exception as e:
-            print(f"\nAn error occurred during field matching: {e}")
-            traceback.print_exc()
-            return 0
-    
-    def full_passport(outputs: dict, reference_outputs: dict) -> bool:
-        return field_match(outputs, reference_outputs) == 1
+        formatted_inputs = {"multimodal_prompt": inputs["multimodal_prompt"]}
+        results = llm_chain_factory().invoke(formatted_inputs)
+        return results
     
     try:
-        def target(inputs: dict) -> dict:
-            if "multimodal_prompt" not in inputs:
-                inputs = inputs["inputs"]
-            if "multimodal_prompt" not in inputs:
-                raise ValueError("Missing 'multimodal_prompt' in inputs")
-            
-            formatted_inputs = {"multimodal_prompt": inputs["multimodal_prompt"]}
-            results = llm_chain_factory().invoke(formatted_inputs)
-            time.sleep(2)
-            return results
-        
         results = evaluate(
             target,
             data=client.list_examples(dataset_name=DATASET_NAME, splits=["base"]),
