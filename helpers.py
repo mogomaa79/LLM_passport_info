@@ -1,6 +1,7 @@
 import base64
 import json
 import os
+import re
 import gspread
 import pickle
 from io import BytesIO
@@ -10,6 +11,11 @@ from pydantic import BaseModel, Field
 from langchain_core.messages import HumanMessage
 from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
+from PlaceValidator import PlaceValidator
+from unidecode import unidecode
+
+# Initialize the place validator
+place_validator = PlaceValidator()
 
 # remove pandas warning
 pd.options.mode.chained_assignment = None  # default='warn'
@@ -20,20 +26,19 @@ SCOPES = [
 ]
 
 try:
-    with open("prompts/Sri Lanka.txt", "r", encoding="utf-8") as f:
+    with open("prompts/Philippines.txt", "r", encoding="utf-8") as f:
         prompt = f.read()
 except Exception as e:
     raise ValueError(f"Error reading prompt.txt: {e}")
 
 def edit_agent_value(value, field):
     value = str(value).strip().upper()
-    
-    # Check if it's a valid date in the format YYYY-MM-DD
+
     if pd.Series(value).str.match(r"^\d{4}-\d{2}-\d{2}$").any() and pd.to_datetime(value, errors='coerce') is not pd.NaT:
         return pd.to_datetime(value).strftime('%d/%m/%Y')
 
     elif str(field).strip().upper() == "NATIONALITY":
-        return "LKA"
+        return "PHL"
     
     elif str(field).strip().upper() == "MOTHER NAME" or str(field).strip().upper() == "FATHER NAME":
         return ""
@@ -42,7 +47,6 @@ def edit_agent_value(value, field):
         return value[0]
 
     return value
-
 
 def upload_results(csv_file_path: str, spreadsheet_id: str, credentials_path: str):
     # Token file to store user credentials
@@ -82,8 +86,8 @@ def upload_results(csv_file_path: str, spreadsheet_id: str, credentials_path: st
     #     "Country of Issue": "outputs.country of issue",
     #     "First Name": "outputs.name",
     #     "Gender": "outputs.gender",
-    #     "Last Name": "outputs.surname",
-    #     "Middle Name": "outputs.middle name",
+    #     "Last Name": "outputs.father name",
+    #     "Middle Name": "outputs.surname",
     #     "Mother Name": "outputs.mother name",
     #     "Nationality": "outputs.country",
     #     "Passport Expiry Date": "outputs.expiry date",
@@ -108,7 +112,7 @@ def upload_results(csv_file_path: str, spreadsheet_id: str, credentials_path: st
     }
 
     def get_gemini_value(series):
-        maid_id = series["Maid’s ID"]
+        maid_id = series['Maid’s ID']
         field = series["Modified Field"]
         mapped_field = google_sheet_columns.get(field)
         if mapped_field:
@@ -144,7 +148,6 @@ def upload_results(csv_file_path: str, spreadsheet_id: str, credentials_path: st
 
     worksheet.update('A1', data_to_upload)
     worksheet.freeze(rows=1)
-
 
 def save_results(results, results_path):
     df = pd.DataFrame(results.to_pandas())
@@ -190,6 +193,133 @@ def map_input_to_messages_lambda(inputs: dict):
     
     return messages
 
+def postprocess(json_data):
+    formatted_data = dict(json_data)
+
+    string_fields = [
+        "number", "country", "name", "surname", "middle name", "gender",
+        "place of birth", "mother name", "father name", "place of issue", "country of issue"
+    ]
+    
+    date_fields = [
+        "original birth date", "birth date", "issue date", 
+        "original expiry date", "expiry date", "mrzDateOfBirth", "mrzDateOfExpiry"
+    ]
+    
+    # Helper function to validate MRZ checksums
+    def calculate_checksum(input_string):
+        weights = [7, 3, 1]
+        total = 0
+        for i, char in enumerate(input_string):
+            if char.isdigit():
+                value = int(char)
+            elif char == '<':
+                value = 0
+            else:
+                value = ord(char) - 55  # A=10, B=11, etc.
+            total += value * weights[i % 3]
+        return total % 10
+    
+    mrz_line1 = formatted_data.get("mrzLine1", "").strip()
+    mrz_line2 = formatted_data.get("mrzLine2", "").strip()
+
+    if len(mrz_line1) >= 44:    
+        name_part = mrz_line1[5:] if len(mrz_line1) > 5 else ""
+        if "<<" in name_part:
+            surname_end = name_part.find("<<")
+            if surname_end > 0:
+                surname = name_part[:surname_end].replace("<", " ").strip()
+                if surname:
+                    formatted_data["surname"] = surname
+            
+            names_start = name_part.find("<<") + 2
+            if names_start < len(name_part):
+            
+                given_names = name_part[names_start:].replace("<", " ").strip()
+                if given_names:
+                    formatted_data["name"] = given_names
+    
+
+    if len(mrz_line2) >= 10:
+        doc_number = mrz_line2[:9].replace("<", "").strip()
+        doc_number_check = mrz_line2[9]
+        if doc_number and doc_number_check.isdigit():
+            calculated_check = str(calculate_checksum(doc_number.ljust(9, '<')))
+            if calculated_check == doc_number_check or not doc_number_check.isdigit():
+                formatted_data["number"] = doc_number
+    
+    if len(mrz_line2) >= 20: 
+        birth_date = mrz_line2[13:19]
+        birth_date_check = mrz_line2[19]
+
+        if birth_date.isdigit() and birth_date_check.isdigit():
+            year = int(birth_date[:2])
+            month = int(birth_date[2:4])
+            day = int(birth_date[4:6])
+            
+            if 1 <= month <= 12 and 1 <= day <= 31:
+                century = 1900 if year >= 40 else 2000
+                try:
+                    date_obj = pd.to_datetime(f"{century + year}-{month}-{day}", errors='coerce')
+                    if date_obj is not pd.NaT:
+                        formatted_data["birth date"] = date_obj.strftime('%d/%m/%Y')
+                except:
+                    pass
+    
+    if len(mrz_line2) >= 21:
+        gender = mrz_line2[20]
+        if gender in ["M", "F"]:
+            formatted_data["gender"] = gender
+    
+    if len(mrz_line2) >= 28:  # Include checksum digit
+        expiry_date = mrz_line2[21:27]
+        expiry_date_check = mrz_line2[27]
+        if expiry_date.isdigit() and expiry_date_check.isdigit():
+            year = int(expiry_date[:2])
+            month = int(expiry_date[2:4])
+            day = int(expiry_date[4:6])
+
+            if 1 <= month <= 12 and 1 <= day <= 31:
+                century = 1900 if year >= 40 else 2000
+                try:
+                    date_obj = pd.to_datetime(f"{century + year}-{month}-{day}", errors='coerce')
+                    if date_obj is not pd.NaT:
+                        formatted_data["expiry date"] = date_obj.strftime('%d/%m/%Y')
+                except:
+                    pass
+    
+    country = formatted_data.get("country", "")
+    issue_place = formatted_data.get("place of issue", "")
+    birth_place = formatted_data.get("place of birth", "")
+
+    if issue_place and country:
+        issue_place_result = place_validator.validate_place(issue_place, country)
+        if issue_place_result["is_valid"]:
+            formatted_data["place of issue"] = issue_place_result["matched_name"]
+    
+    if birth_place and country:
+        birth_place_result = place_validator.validate_place(birth_place, country)
+        if birth_place_result["is_valid"]:
+            formatted_data["place of birth"] = birth_place_result["matched_name"]
+    
+    # Format string fields
+    for field in string_fields:
+        if field in formatted_data:
+            value = str(formatted_data[field]).upper()
+            value = re.sub(r'[^\w\s]', ' ', value)
+            # replace all diacritics with their base letter
+            value = unidecode(value)
+            value = re.sub(r'\s+', ' ', value).strip()
+            formatted_data[field] = value
+    
+    # Format date fields
+    for field in date_fields:
+        if field in formatted_data:
+            value = formatted_data[field]
+            date_obj = pd.to_datetime(value, errors='coerce', dayfirst=True)
+            formatted_data[field] = date_obj.strftime('%d/%m/%Y') if date_obj is not pd.NaT else value
+    
+    return formatted_data
 
 class PassportExtraction(BaseModel):
     """Detailed passport information extracted from an image."""

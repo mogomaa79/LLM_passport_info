@@ -1,0 +1,32 @@
+inputs.image_id,outputs.output,error,reference.reference_output,feedback.field_match,feedback.full_passport,execution_time,example_id,id,output
+83548,,"TypeError('cannot unpack non-iterable NoneType object')
+
+Traceback (most recent call last):
+  File ""/Users/mohamedgomaa/Downloads/Maids/LLM_passport_info/main.py"", line 108, in target
+    results = llm_chain_factory().invoke(formatted_inputs)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File ""/usr/local/anaconda3/lib/python3.11/site-packages/langchain_core/runnables/base.py"", line 3034, in invoke
+    input = context.run(step.invoke, input, config)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File ""/usr/local/anaconda3/lib/python3.11/site-packages/langchain_core/runnables/base.py"", line 4757, in invoke
+    return self._call_with_config(
+           ^^^^^^^^^^^^^^^^^^^^^^^
+  File ""/usr/local/anaconda3/lib/python3.11/site-packages/langchain_core/runnables/base.py"", line 1930, in _call_with_config
+    context.run(
+  File ""/usr/local/anaconda3/lib/python3.11/site-packages/langchain_core/runnables/config.py"", line 428, in call_func_with_variable_args
+    return func(input, **kwargs)  # type: ignore[call-arg]
+           ^^^^^^^^^^^^^^^^^^^^^
+  File ""/usr/local/anaconda3/lib/python3.11/site-packages/langchain_core/runnables/base.py"", line 4615, in _invoke
+    output = call_func_with_variable_args(
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File ""/usr/local/anaconda3/lib/python3.11/site-packages/langchain_core/runnables/config.py"", line 428, in call_func_with_variable_args
+    return func(input, **kwargs)  # type: ignore[call-arg]
+           ^^^^^^^^^^^^^^^^^^^^^
+  File ""/Users/mohamedgomaa/Downloads/Maids/LLM_passport_info/src/utils/passport_processing.py"", line 130, in postprocess
+    issue_place_result = place_validator.validate_place(issue_place, country)
+                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File ""/Users/mohamedgomaa/Downloads/Maids/LLM_passport_info/src/utils/place_validator.py"", line 29, in validate_place
+    best_match, score = process.extractOne(
+    ^^^^^^^^^^^^^^^^^
+TypeError: cannot unpack non-iterable NoneType object
+","{'gender': 'FEMALE', 'birthdate': '1998-08-28', 'last name': 'NAMALE', 'first name': 'FAITH AMUKHUMA', 'birth place': 'NAKURU KEN', 'middle name': 'NAMALE', 'mother name': 'NAMALE', 'nationality': 'KENYAN', 'passport id': 'AK1149854', 'country of issue': 'KENYA', 'passport place(en)': 'GOVERNMENT OF KENYA', 'passport issue date': '2022-06-15', 'passport expiry date': '2032-06-14'}",0,False,4.073804,f1719876-9da0-47c2-b5f0-217341c6bf6e,c42709a5-73e8-4f0e-9575-1a4e46362247,"{""output"": null}"

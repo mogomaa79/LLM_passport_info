@@ -3,14 +3,20 @@ import random
 import os
 import time
 from dotenv import load_dotenv
-from DataLoader import DataLoader
 import pandas as pd
-from helpers import map_input_to_messages_lambda, save_results, upload_results, PassportExtraction
+from json.decoder import JSONDecodeError
+
+from src.data_loaders import DataLoader
+from src.models import PassportExtraction
+from src.utils import (
+    map_input_to_messages_lambda, save_results,
+    upload_results, postprocess
+)
+
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.runnables import RunnableLambda
 from langsmith import Client, evaluate
 from langchain_core.output_parsers import JsonOutputParser
-from json.decoder import JSONDecodeError
 
 load_dotenv()
 
@@ -18,8 +24,8 @@ LANGSMITH_API_KEY = os.getenv("LANGSMITH_API_KEY")
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
-DATASET_NAME = "Sri Lanka"
-IMAGE_PATH = "data/sri_lankan/sri_lankan_yes"
+DATASET_NAME = "Kenya"
+IMAGE_PATH = "data/kenya/kenya_yes"
 
 MODEL = "gemini-2.0-flash"
 GOOGLE_SHEETS_CREDENTIALS_PATH = "credentials.json"
@@ -56,7 +62,7 @@ def main():
             traceback.print_exc()
 
     def llm_chain_factory():
-        return runnable | llm_retry | json_parser
+        return runnable | llm_retry | json_parser | RunnableLambda(postprocess)
 
     print(f"\nStarting run on dataset '{DATASET_NAME}' with project name '{PROJECT_NAME}'...")
     
@@ -73,13 +79,14 @@ def main():
             correct += outputs["place of issue"] == reference_outputs["passport place(en)"]
             correct += outputs["place of birth"] == reference_outputs["birth place"]
             correct += outputs["country of issue"] == reference_outputs["country of issue"]
-            correct += outputs["country"] == "LKA"
+            correct += outputs["country"] == "KEN"
             correct += outputs["gender"] == reference_outputs["gender"][0]
             correct += outputs["name"] == reference_outputs["first name"]
             correct += outputs["father name"] == ""
             correct += outputs["mother name"] == ""
             correct += outputs["middle name"] == ""
             correct += outputs["surname"] == reference_outputs["last name"]
+
             return correct / 14
         
         except Exception as e:
@@ -89,6 +96,7 @@ def main():
     
     def full_passport(outputs: dict, reference_outputs: dict) -> bool:
         return field_match(outputs, reference_outputs) == 1
+    
     try:
         def target(inputs: dict) -> dict:
             if "multimodal_prompt" not in inputs:
@@ -124,4 +132,4 @@ def main():
         print("\nRun on dataset failed.")
 
 if __name__ == "__main__":
-    main()
+    main() 
