@@ -8,7 +8,7 @@ from json.decoder import JSONDecodeError
 
 from src.data_loader import DataLoader
 from src.passport_extraction import PassportExtraction
-from src.utils import save_results, upload_results, postprocess
+from src.utils import save_results, upload_results, postprocess, mapper
 
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.runnables import RunnableLambda
@@ -22,8 +22,8 @@ LANGSMITH_API_KEY = os.getenv("LANGSMITH_API_KEY")
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
-DATASET_NAME = "Kenya"
-IMAGE_PATH = "data/kenya/kenya_yes"
+DATASET_NAME = "Philippines"
+IMAGE_PATH = "data/philippines/philippines_yes"
 
 MODEL = "gemini-2.0-flash"
 GOOGLE_SHEETS_CREDENTIALS_PATH = "credentials.json"
@@ -64,12 +64,12 @@ def field_match(outputs: dict, reference_outputs: dict) -> float:
         correct += outputs["place of issue"] == reference_outputs["passport place(en)"]
         correct += outputs["place of birth"] == reference_outputs["birth place"]
         correct += outputs["country of issue"] == reference_outputs["country of issue"]
-        correct += outputs["country"] == "KEN"
+        correct += outputs["country"] == mapper[DATASET_NAME]
         correct += outputs["gender"] == reference_outputs["gender"][0]
         correct += outputs["name"] == reference_outputs["first name"]
         correct += outputs["father name"] == ""
         correct += outputs["mother name"] == ""
-        correct += outputs["middle name"] == ""
+        correct += outputs["middle name"] == reference_outputs["middle name"]
         correct += outputs["surname"] == reference_outputs["last name"]
 
         return correct / 14
@@ -143,6 +143,7 @@ def main():
             results_path,
             spreadsheet_id=SPREADSHEET_ID,
             credentials_path=GOOGLE_SHEETS_CREDENTIALS_PATH,
+            country=DATASET_NAME,
         )
 
     except Exception as e:

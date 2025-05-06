@@ -106,7 +106,8 @@ def postprocess(json_data):
             day = int(expiry_date[4:6])
 
             if 1 <= month <= 12 and 1 <= day <= 31:
-                century = 1900 if year >= pd.Timestamp.now().year - 2000 else 2000
+                # current year - 2000 + 20 to account for 20 year extension
+                century = 1900 if year >= pd.Timestamp.now().year - 2000 + 20 else 2000
                 try:
                     date_obj = pd.to_datetime(f"{century + year}-{month}-{day}", errors='coerce')
                     if date_obj is not pd.NaT:

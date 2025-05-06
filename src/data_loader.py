@@ -183,4 +183,5 @@ class DataLoader:
     def run(self):
         self.load_examples() # This now includes loading reference data
         self.upload_to_dataset()
-        return self.client 
+        
+        return self.client

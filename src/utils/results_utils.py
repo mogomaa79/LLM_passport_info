@@ -14,24 +14,39 @@ SCOPES = [
 
 pd.options.mode.chained_assignment = None
 
-def edit_agent_value(value, field):
+mapper = {
+    "Philippines": "PHL",
+    "Ethiopia": "ETH",
+    "Kenya": "KEN",
+    "Nepal": "NEP",
+    "Sri Lanka": "LKA",
+    "India": "IND",
+}
+
+def edit_agent_value(value, field, country):
     value = str(value).strip().upper()
 
     if pd.Series(value).str.match(r"^\d{4}-\d{2}-\d{2}$").any() and pd.to_datetime(value, errors='coerce') is not pd.NaT:
         return pd.to_datetime(value).strftime('%d/%m/%Y')
 
     elif str(field).strip().upper() == "NATIONALITY":
-        return "KEN"
+        return mapper[country]
     
-    elif str(field).strip().upper() == "MOTHER NAME" or str(field).strip().upper() == "FATHER NAME":
+    elif country != "India" and (str(field).strip().upper() == "MOTHER NAME" or str(field).strip().upper() == "FATHER NAME"):
         return ""
-
+    
+    elif country == "India" and str(field).strip().upper() == "MOTHER NAME":
+        return value.split()[0]
+    
+    elif country == "India" and str(field).strip().upper() == "FATHER NAME":
+        return value
+    
     elif str(field).strip().upper() == "GENDER":
         return value[0]
 
     return value
 
-def upload_results(csv_file_path: str, spreadsheet_id: str, credentials_path: str, excel_path: str = "OCR Extracted Data and User Modifications (feb 1- march 31) .xlsx"):
+def upload_results(csv_file_path: str, spreadsheet_id: str, credentials_path: str, country: str, excel_path: str = "OCR Extracted Data and User Modifications (feb 1- march 31) .xlsx"):
     # Token file to store user credentials
     token_file = 'token.pickle'
 
@@ -100,7 +115,7 @@ def upload_results(csv_file_path: str, spreadsheet_id: str, credentials_path: st
         
     filtered_df = merged_df[['Maid’s ID', 'Modified Field', 'Agent Value', 'OCR Value']]
     filtered_df["Gemini Value"] = filtered_df.apply(get_gemini_value, axis=1)
-    filtered_df["Edited Agent Value"] = filtered_df.apply(lambda row: edit_agent_value(row['Agent Value'], row['Modified Field']), axis=1)
+    filtered_df["Edited Agent Value"] = filtered_df.apply(lambda row: edit_agent_value(row['Agent Value'], row['Modified Field'], country), axis=1)
     filtered_df["Similarity"] = filtered_df.apply(lambda row: row['Gemini Value'] == row['Edited Agent Value'], axis=1)
     filtered_df = filtered_df[['Maid’s ID', 'Modified Field', 'Edited Agent Value', 'Gemini Value', 'Similarity', 'Agent Value', 'OCR Value']]
 
