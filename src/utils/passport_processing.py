@@ -2,6 +2,7 @@ import re
 from unidecode import unidecode
 import pandas as pd
 from src.utils.place_validator import PlaceValidator
+from src.utils.country_rules import *
 
 place_validator = PlaceValidator()
 
@@ -186,4 +187,7 @@ def postprocess(json_data):
             date_obj = pd.to_datetime(value, errors='coerce', dayfirst=True)
             formatted_data[field] = date_obj.strftime('%d/%m/%Y') if date_obj is not pd.NaT else value
     
+    if formatted_data.get("country") == "PHL":
+        formatted_data["number"] = philippines_rules(formatted_data)
+
     return formatted_data

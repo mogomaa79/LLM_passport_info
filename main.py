@@ -8,7 +8,7 @@ from json.decoder import JSONDecodeError
 
 from src.data_loader import DataLoader
 from src.passport_extraction import PassportExtraction
-from src.utils import (save_results, upload_results, postprocess)
+from src.utils import save_results, upload_results, postprocess
 
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.runnables import RunnableLambda
