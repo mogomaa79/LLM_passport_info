@@ -2,7 +2,6 @@ import re
 from unidecode import unidecode
 import pandas as pd
 from src.utils.place_validator import PlaceValidator
-from datetime import datetime
 
 place_validator = PlaceValidator()
 
@@ -37,13 +36,16 @@ def postprocess(json_data):
     mrz_line2 = formatted_data.get("mrzLine2", "").strip()
 
     if len(mrz_line1) >= 44:    
-        name_part = mrz_line1[5:] if len(mrz_line1) > 5 else ""
+        name_part = mrz_line1[5:]
         if "<<" in name_part:
             surname_end = name_part.find("<<")
             if surname_end > 0:
                 surname = name_part[:surname_end].replace("<", " ").strip()
                 if surname:
-                    formatted_data["surname"] = surname
+                    clean_surname = re.sub(r'[^\w\s]', '', surname).upper().replace(" ", "")
+                    clean_original = re.sub(r'[^\w\s]', '', formatted_data.get("surname", "")).upper().replace(" ", "")
+                    if clean_original != clean_surname:
+                        formatted_data["surname"] = surname
             
             names_start = name_part.find("<<") + 2
             if names_start < len(name_part):
@@ -54,12 +56,10 @@ def postprocess(json_data):
                     if original_name:
                         clean_original = re.sub(r'[^\w\s]', '', original_name).upper().replace(" ", "")
                         clean_mrz = re.sub(r'[^\w\s]', '', given_names).upper().replace(" ", "")
-                        
+
                         max_mrz_chars = len(name_part) - names_start
                         
-                        if clean_original == clean_mrz or (len(clean_original) > len(clean_mrz) and len(clean_original) > max_mrz_chars):
-                            pass
-                        else:
+                        if clean_original != clean_mrz and (len(clean_original) <= len(clean_mrz) and len(clean_original) <= max_mrz_chars):
                             formatted_data["name"] = given_names
                     else:
                         formatted_data["name"] = given_names
@@ -83,7 +83,7 @@ def postprocess(json_data):
             day = int(birth_date[4:6])
             
             if 1 <= month <= 12 and 1 <= day <= 31:
-                century = 1900 if year >= 40 else 2000
+                century = 1900 if year >= pd.Timestamp.now().year - 2000 else 2000
                 try:
                     date_obj = pd.to_datetime(f"{century + year}-{month}-{day}", errors='coerce')
                     if date_obj is not pd.NaT:
@@ -105,7 +105,7 @@ def postprocess(json_data):
             day = int(expiry_date[4:6])
 
             if 1 <= month <= 12 and 1 <= day <= 31:
-                century = 1900 if year >= 40 else 2000
+                century = 1900 if year >= pd.Timestamp.now().year - 2000 else 2000
                 try:
                     date_obj = pd.to_datetime(f"{century + year}-{month}-{day}", errors='coerce')
                     if date_obj is not pd.NaT:
@@ -130,6 +130,14 @@ def postprocess(json_data):
     birth_date_str = formatted_data.get("birth date")
     expiry_date_str = formatted_data.get("expiry date")
     issue_date_str = formatted_data.get("issue date")
+
+    if not birth_date_str:
+        formatted_data["birth date"] = formatted_data.get("original birth date")
+        birth_date_str = formatted_data.get("birth date")
+    
+    if not expiry_date_str:
+        formatted_data["expiry date"] = formatted_data.get("original expiry date")
+        expiry_date_str = formatted_data.get("expiry date")
     
     if birth_date_str and expiry_date_str and issue_date_str:
         try:

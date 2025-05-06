@@ -96,6 +96,7 @@ def main():
     runnable = RunnableLambda(map_input_to_messages_lambda)
     llm_retry = llm.with_retry(retry_if_exception_type=(Exception, JSONDecodeError), stop_after_attempt=5)
     json_parser = JsonOutputParser(pydantic_object=PassportExtraction)
+    postprocessor = RunnableLambda(postprocess)
 
     if ADD_DATA:
         dataloader = DataLoader(
@@ -111,7 +112,7 @@ def main():
             traceback.print_exc()
 
     def llm_chain_factory():
-        return runnable | llm_retry | json_parser | RunnableLambda(postprocess)
+        return runnable | llm_retry | json_parser | postprocessor
 
     print(f"\nStarting run on dataset '{DATASET_NAME}' with project name '{PROJECT_NAME}'...")
 
@@ -123,6 +124,7 @@ def main():
         
         formatted_inputs = {"multimodal_prompt": inputs["multimodal_prompt"]}
         results = llm_chain_factory().invoke(formatted_inputs)
+        time.sleep(1)
         return results
     
     try:
