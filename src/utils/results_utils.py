@@ -18,7 +18,7 @@ mapper = {
     "Philippines": "PHL",
     "Ethiopia": "ETH",
     "Kenya": "KEN",
-    "Nepal": "NEP",
+    "Nepal": "NPL",
     "Sri Lanka": "LKA",
     "India": "IND",
 }

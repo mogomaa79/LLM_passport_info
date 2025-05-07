@@ -1,0 +1,66 @@
+inputs.image_id,outputs.output,error,reference.reference_output,feedback.field_match,feedback.full_passport,execution_time,example_id,id,output
+87578,,"BadRequestError(""Error code: 400 - {'type': 'error', 'error': {'type': 'invalid_request_error', 'message': 'messages.0.content.1.image.source.base64: invalid base64 data'}}"")
+
+Traceback (most recent call last):
+  File ""/Users/mohamedgomaa/Downloads/Maids/LLM_passport_info/main.py"", line 158, in target
+    results = llm_chain_factory().invoke(formatted_inputs)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File ""/usr/local/anaconda3/lib/python3.11/site-packages/langchain_core/runnables/base.py"", line 3034, in invoke
+    input = context.run(step.invoke, input, config)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File ""/usr/local/anaconda3/lib/python3.11/site-packages/langchain_core/runnables/retry.py"", line 201, in invoke
+    return self._call_with_config(self._invoke, input, config, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File ""/usr/local/anaconda3/lib/python3.11/site-packages/langchain_core/runnables/base.py"", line 1930, in _call_with_config
+    context.run(
+  File ""/usr/local/anaconda3/lib/python3.11/site-packages/langchain_core/runnables/config.py"", line 428, in call_func_with_variable_args
+    return func(input, **kwargs)  # type: ignore[call-arg]
+           ^^^^^^^^^^^^^^^^^^^^^
+  File ""/usr/local/anaconda3/lib/python3.11/site-packages/langchain_core/runnables/retry.py"", line 186, in _invoke
+    for attempt in self._sync_retrying(reraise=True):
+  File ""/usr/local/anaconda3/lib/python3.11/site-packages/tenacity/__init__.py"", line 347, in __iter__
+    do = self.iter(retry_state=retry_state)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File ""/usr/local/anaconda3/lib/python3.11/site-packages/tenacity/__init__.py"", line 325, in iter
+    raise retry_exc.reraise()
+          ^^^^^^^^^^^^^^^^^^^
+  File ""/usr/local/anaconda3/lib/python3.11/site-packages/tenacity/__init__.py"", line 158, in reraise
+    raise self.last_attempt.result()
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File ""/usr/local/anaconda3/lib/python3.11/concurrent/futures/_base.py"", line 449, in result
+    return self.__get_result()
+           ^^^^^^^^^^^^^^^^^^^
+  File ""/usr/local/anaconda3/lib/python3.11/concurrent/futures/_base.py"", line 401, in __get_result
+    raise self._exception
+  File ""/usr/local/anaconda3/lib/python3.11/site-packages/langchain_core/runnables/retry.py"", line 188, in _invoke
+    result = super().invoke(
+             ^^^^^^^^^^^^^^^
+  File ""/usr/local/anaconda3/lib/python3.11/site-packages/langchain_core/runnables/base.py"", line 5416, in invoke
+    return self.bound.invoke(
+           ^^^^^^^^^^^^^^^^^^
+  File ""/usr/local/anaconda3/lib/python3.11/site-packages/langchain_core/language_models/chat_models.py"", line 368, in invoke
+    self.generate_prompt(
+  File ""/usr/local/anaconda3/lib/python3.11/site-packages/langchain_core/language_models/chat_models.py"", line 937, in generate_prompt
+    return self.generate(prompt_messages, stop=stop, callbacks=callbacks, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File ""/usr/local/anaconda3/lib/python3.11/site-packages/langchain_core/language_models/chat_models.py"", line 759, in generate
+    self._generate_with_cache(
+  File ""/usr/local/anaconda3/lib/python3.11/site-packages/langchain_core/language_models/chat_models.py"", line 1002, in _generate_with_cache
+    result = self._generate(
+             ^^^^^^^^^^^^^^^
+  File ""/usr/local/anaconda3/lib/python3.11/site-packages/langchain_anthropic/chat_models.py"", line 1169, in _generate
+    data = self._client.messages.create(**payload)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File ""/usr/local/anaconda3/lib/python3.11/site-packages/anthropic/_utils/_utils.py"", line 283, in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File ""/usr/local/anaconda3/lib/python3.11/site-packages/anthropic/resources/messages/messages.py"", line 948, in create
+    return self._post(
+           ^^^^^^^^^^^
+  File ""/usr/local/anaconda3/lib/python3.11/site-packages/anthropic/_base_client.py"", line 1279, in post
+    return cast(ResponseT, self.request(cast_to, opts, stream=stream, stream_cls=stream_cls))
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File ""/usr/local/anaconda3/lib/python3.11/site-packages/anthropic/_base_client.py"", line 1074, in request
+    raise self._make_status_error_from_response(err.response) from None
+anthropic.BadRequestError: Error code: 400 - {'type': 'error', 'error': {'type': 'invalid_request_error', 'message': 'messages.0.content.1.image.source.base64: invalid base64 data'}}
+","{'gender': 'FEMALE', 'birthdate': '1980-01-13', 'last name': 'RICAFORT', 'first name': 'CRISTINA', 'birth place': 'TACURONG S KUD', 'middle name': 'ASIS', 'mother name': 'ASIS', 'nationality': 'FILIPINA', 'passport id': 'P1309514B', 'country of issue': 'CHINA', 'passport place(en)': 'PCG HONG KONG', 'passport issue date': '2019-04-02', 'passport expiry date': '2029-04-01'}",0,False,21.012003,18630479-4ae8-42bd-806d-9b010d543358,d40f0111-46a4-4de1-8a8b-1d54694bea4a,"{""output"": null}"
