@@ -6,13 +6,13 @@ from dotenv import load_dotenv
 import pandas as pd
 from json.decoder import JSONDecodeError
 
-from src.data_loader import DataLoader
 from src.passport_extraction import PassportExtraction
 from src.utils import save_results, upload_results, postprocess, mapper
 
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_openai import ChatOpenAI
 from langchain_anthropic import ChatAnthropic
+
 from langchain_core.runnables import RunnableLambda
 from langsmith import Client, evaluate
 from langchain_core.messages import HumanMessage
@@ -24,14 +24,14 @@ LANGSMITH_API_KEY = os.getenv("LANGSMITH_API_KEY")
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
-DATASET_NAME = "Philippines"
-IMAGE_PATH = "data/philippines/philippines_yes"
+MISTRAL_API_KEY = os.getenv("MISTRAL_API_KEY")
 
-MODEL = "claude-3-7-sonnet-latest"
+DATASET_NAME = "Philippines"
+
+MODEL = "gemini-2.0-flash"
 GOOGLE_SHEETS_CREDENTIALS_PATH = "credentials.json"
 SPREADSHEET_ID = "1ljIem8te0tTKrN8N9jOOnPIRh2zMvv2WB_3FBa4ycgA"
 PROJECT_NAME = f"{DATASET_NAME} - {MODEL} - {random.randint(0, 100)}"
-ADD_DATA = False
 
 def get_prompt():
     """Load the prompt for a specific country"""
@@ -123,13 +123,13 @@ def full_passport(outputs: dict, reference_outputs: dict) -> bool:
 def main():
     client = Client(api_key=LANGSMITH_API_KEY)
 
-    # llm = ChatGoogleGenerativeAI(
-    #     model=MODEL,
-    #     google_api_key=GOOGLE_API_KEY,
-    #     temperature=0.0,
-    #     max_tokens=50000,
-    #     max_output_tokens=2048,
-    # )
+    llm = ChatGoogleGenerativeAI(
+        model=MODEL,
+        google_api_key=GOOGLE_API_KEY,
+        temperature=0.0,
+        max_tokens=50000,
+        max_output_tokens=2048,
+    )
 
     # llm = ChatOpenAI(
     #     model="gpt-4o",
@@ -139,13 +139,13 @@ def main():
     #     max_completion_tokens=2048,
     # )
 
-    llm = ChatAnthropic(
-        model_name="claude-3-7-sonnet-latest",
-        api_key=ANTHROPIC_API_KEY,
-        temperature=1,
-        max_tokens=30000,
-        thinking={"type": "enabled", "budget_tokens": 2000},
-    )
+    # llm = ChatAnthropic(
+    #     model_name="claude-3-7-sonnet-latest",
+    #     api_key=ANTHROPIC_API_KEY,
+    #     temperature=1,
+    #     max_tokens=30000,
+    #     thinking={"type": "enabled", "budget_tokens": 2000},
+    # )
 
     runnable = RunnableLambda(map_input_to_messages_lambda)
     runnable_claude = RunnableLambda(msg_lambda_claude)
@@ -153,21 +153,8 @@ def main():
     json_parser = JsonOutputParser(pydantic_object=PassportExtraction)
     postprocessor = RunnableLambda(postprocess)
 
-    if ADD_DATA:
-        dataloader = DataLoader(
-            client=client,
-            dataset_name=DATASET_NAME,
-            image_path=IMAGE_PATH,
-        )
-        try:
-            client = dataloader.run()
-            print("Data loading completed.")
-        except Exception as e:
-            print(f"\nAn error occurred during data loading: {e}")
-            traceback.print_exc()
-
     def llm_chain_factory():
-        return runnable_claude | llm_retry | json_parser
+        return runnable | llm_retry | json_parser
 
     print(f"\nStarting run on dataset '{DATASET_NAME}' with project name '{PROJECT_NAME}'...")
 
@@ -179,7 +166,7 @@ def main():
         
         formatted_inputs = {"multimodal_prompt": inputs["multimodal_prompt"]}
         results = llm_chain_factory().invoke(formatted_inputs)
-        # time.sleep(1)
+        time.sleep(1)
         return results
     
     try:
