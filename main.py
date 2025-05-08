@@ -11,7 +11,6 @@ from src.utils import save_results, upload_results, postprocess, mapper
 
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_openai import ChatOpenAI
-from langchain_anthropic import ChatAnthropic
 
 from langchain_core.runnables import RunnableLambda
 from langsmith import Client, evaluate
@@ -23,8 +22,6 @@ load_dotenv()
 LANGSMITH_API_KEY = os.getenv("LANGSMITH_API_KEY")
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
-MISTRAL_API_KEY = os.getenv("MISTRAL_API_KEY")
 
 DATASET_NAME = "Philippines"
 
@@ -50,42 +47,6 @@ def map_input_to_messages_lambda(inputs: dict):
     messages = [
         HumanMessage(content=multimodal_prompt),
     ]
-    
-    return messages
-
-def msg_lambda_claude(inputs: dict):
-    """Convert inputs to LangChain messages format for Claude"""
-    multimodal_prompt = inputs.get("multimodal_prompt", [])
-    prompt_text = get_prompt()
-    
-    # Extract the base64 image data
-    # Note: This assumes your input structure has the image as the second element
-    # and follows the format you showed with "type": "image_url"
-    image_data = None
-    image_url = multimodal_prompt[0]["image_url"]["url"]
-    if "base64," in image_url:
-        image_data = image_url.split("base64,")[1]
-    else:
-        image_data = image_url
-    
-    if not image_data:
-        raise ValueError("No image data found in the input")
-    
-    # Create the properly formatted message for Claude
-    messages = [HumanMessage(
-        content=[
-            {
-                "type": "text",
-                "text": prompt_text,
-            },
-            {
-                "type": "image",
-                "source_type": "base64",
-                "data": image_data,
-                "mime_type": "image/jpeg",
-            },
-        ],
-    )]
     
     return messages
 
@@ -139,16 +100,7 @@ def main():
     #     max_completion_tokens=2048,
     # )
 
-    # llm = ChatAnthropic(
-    #     model_name="claude-3-7-sonnet-latest",
-    #     api_key=ANTHROPIC_API_KEY,
-    #     temperature=1,
-    #     max_tokens=30000,
-    #     thinking={"type": "enabled", "budget_tokens": 2000},
-    # )
-
     runnable = RunnableLambda(map_input_to_messages_lambda)
-    runnable_claude = RunnableLambda(msg_lambda_claude)
     llm_retry = llm.with_retry(retry_if_exception_type=(Exception, JSONDecodeError), stop_after_attempt=5)
     json_parser = JsonOutputParser(pydantic_object=PassportExtraction)
     postprocessor = RunnableLambda(postprocess)
