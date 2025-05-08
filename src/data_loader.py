@@ -4,7 +4,7 @@ import pandas as pd
 from src.utils.image_utils import image_to_base64
 
 class DataLoader:
-    def __init__(self, client, dataset_name, image_path, excel_path="OCR Extracted Data and User Modifications (feb 1- march 31) .xlsx", excel_sheet_name="Data"):
+    def __init__(self, client, dataset_name, image_path, excel_path="./static/OCR Extracted Data and User Modifications (feb 1- march 31) .xlsx", excel_sheet_name="Data"):
         self.client = client
         self.dataset_name = dataset_name
         self.dataset = self.get_dataset()

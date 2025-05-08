@@ -23,7 +23,7 @@ LANGSMITH_API_KEY = os.getenv("LANGSMITH_API_KEY")
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
-DATASET_NAME = "Philippines"
+DATASET_NAME = "Ethiopia"
 
 MODEL = "gemini-2.0-flash"
 GOOGLE_SHEETS_CREDENTIALS_PATH = "credentials.json"
@@ -68,7 +68,7 @@ def field_match(outputs: dict, reference_outputs: dict) -> float:
         correct += outputs["name"] == reference_outputs["first name"]
         correct += outputs["father name"] == ""
         correct += outputs["mother name"] == ""
-        correct += outputs["middle name"] == reference_outputs["middle name"]
+        correct += outputs["middle name"] == ""
         correct += outputs["surname"] == reference_outputs["last name"]
 
         return correct / 14
@@ -87,15 +87,16 @@ def main():
     llm = ChatGoogleGenerativeAI(
         model=MODEL,
         google_api_key=GOOGLE_API_KEY,
-        temperature=0.0,
-        max_tokens=50000,
+        temperature=1,
+        max_tokens=30000,
         max_output_tokens=2048,
+        # thinking_budget=2048
     )
 
     # llm = ChatOpenAI(
     #     model="gpt-4o",
     #     openai_api_key=OPENAI_API_KEY,
-    #     temperature=0.0,
+    #     temperature=1,
     #     max_tokens=50000,
     #     max_completion_tokens=2048,
     # )
@@ -124,7 +125,7 @@ def main():
     try:
         results = evaluate(
             target,
-            data=client.list_examples(dataset_name=DATASET_NAME, splits=["train"]),
+            data=client.list_examples(dataset_name=DATASET_NAME, splits=["base"]),
             evaluators=[field_match, full_passport],
             experiment_prefix=f"{MODEL} ",
             client=client,

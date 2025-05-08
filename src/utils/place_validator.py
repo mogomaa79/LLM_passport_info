@@ -3,7 +3,7 @@ import os
 from fuzzywuzzy import process, fuzz
 
 class PlaceValidator:
-    def __init__(self, data_dir="location_data", matching_threshold=80):
+    def __init__(self, data_dir="static", matching_threshold=80):
         self.data_dir = data_dir
         self.matching_threshold = matching_threshold
         

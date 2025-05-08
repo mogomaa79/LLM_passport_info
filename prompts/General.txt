@@ -254,35 +254,9 @@ middle name
 Steps for Extraction & Cleaning:
 Extract form OCR:
 Extract the labeled middle name field from the OCR.
+
+
 Clean the Middle Name:
-
-
-Replace hyphens ("‑") with spaces.
-
-
-Remove apostrophes.
-
-
-Strip diacritics from all characters.
-Examples:
-Example 1:
-
-
-OCR Name: ""
-
-
-Middle Name: "" (No middle name available, hence empty).
-
-
-Example 2:
-
-
-OCR Name: "CABEL"
-
-
-Middle Name: "CABEL"
-Each field (name, surname, middle name) follows these consistent formatting rules:
-Hyphen Replacement: Replace all hyphens ("‑") with spaces.
 
 
 Apostrophe Removal: Remove any apostrophes in the names.
@@ -298,7 +272,6 @@ Replace slashes ("/") with spaces.
 
 
 Replace parentheses ("( )") with spaces.
-Replace angle brackets ("<") with spaces.
 
 
 gender
@@ -701,7 +674,6 @@ Explanation: This field should contain the unmodified OCR country code exactly a
 original birth date
 Source: Extract the raw, unmodified OCR substring for the birth date.
 Rule: The original birth date should be converted to DD/MM/YYYY format.
-Example: If the OCR text is "16/06/1972", the original birth date will be "16/06/1972" after conversion (if it's already in valid format, no changes are needed).
 original gender
 Source: Extract the raw, unmodified OCR substring for the gender field.
 Explanation: This field should contain the raw OCR gender token exactly as it appears.
@@ -709,7 +681,6 @@ Example: If the OCR output is "F" (Female), then the original gender will be "F"
 original expiry date 
 Source: Extract the raw, unmodified OCR substring for the expiry date.
 Rule: The original expiry date should be converted to DD/MM/YYYY format.
-Example: If the OCR text is "14/01/2031", the original expiry date will be "14/01/2031" after conversion (if it's already in valid format, no changes are needed).
 <COUNTRY RULES>
 CASE 1: Philippines - PHL – Filipino
 Scope of These Rules Apply this section only when either of the following is true:
@@ -919,6 +890,7 @@ Final Surname: "ORDONO" (Non-Latin character "Ñ" translated to "N").
 
 
 middle name
+Filipina Passports contain a middle name field, so never leave it empty unless it is actually left empty.
 Steps for Extraction & Cleaning:
 Extract form OCR:
 
@@ -935,7 +907,7 @@ Replace hyphens ("‑") with spaces.
 Remove apostrophes.
 
 
-Strip diacritics from all characters.
+Strip diacritics from all characters: Translate non-Latin characters into their English equivalents (e.g., "Ñ" → "N").
 
 
 Example:
@@ -945,35 +917,6 @@ OCR Name: "CABEL"
 
 
 Middle Name: "CABEL"
-
-
-Example:
-
-
-OCR Name: ""
-
-
-Middle Name: "" (No middle name available, hence empty).
-Each field (name, surname, middle name) follows these consistent formatting rules:
-Hyphen Replacement: Replace all hyphens ("‑") with spaces.
-
-
-Apostrophe Removal: Remove any apostrophes in the names.
-
-
-Diacritic Stripping: Remove all diacritical marks (accents) from characters, e.g., Á → A, Ñ → N.
-
-
-Special Character Replacement:
-
-
-Replace slashes ("/") with spaces.
-
-
-Replace parentheses ("( )") with spaces.
-
-
-Replace angle brackets ("<") with spaces.
 
 
 place of issue 
@@ -1322,24 +1265,6 @@ Example: S/TSAEDENBA ➜ S TSAEDENBA
 Example: SIMJABET ➜ SIMJABET (No change if correct spelling)
 
 
-name
-Ethiopian passports list the family name first in the visual zone, but do not flip the order.
-
-
-Example: If OCR reads ARARSE URGEA, keep exactly ARARSE URGEA.
-
-
-Compare the OCR name (visual zone) with mrzGivenNames from MRZ Line 1.
-
-
-If they differ character‑for‑character, always choose the name from MRZ Line 1.
-
-
-Example mismatch: FIREHIWOT AMARE (OCR) vs FIRIEHIWOT AMARE (MRZ) → use FIRIEHIWOT AMARE.
-
-
-If MRZ name is missing or unreadable, fall back to the OCR name.
-Disregard any language that is not English. Amharic or any other language is not accepted. DO NOT Try to read it as English letters.
 name 
 Steps for Extraction & Cleaning:
 Extract Name from OCR:
@@ -1379,6 +1304,8 @@ Apostrophes → removed.
 
 
 Strip diacritics.
+
+
 Put the entire given name in First Name (Include all parts of the given name).
 
 

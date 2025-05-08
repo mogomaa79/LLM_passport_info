@@ -46,7 +46,7 @@ def edit_agent_value(value, field, country):
 
     return value
 
-def upload_results(csv_file_path: str, spreadsheet_id: str, credentials_path: str, country: str, excel_path: str = "OCR Extracted Data and User Modifications (feb 1- march 31) .xlsx"):
+def upload_results(csv_file_path: str, spreadsheet_id: str, credentials_path: str, country: str, excel_path: str = "./static/OCR Extracted Data and User Modifications (feb 1- march 31) .xlsx"):
     # Token file to store user credentials
     token_file = 'token.pickle'
 
