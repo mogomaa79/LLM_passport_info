@@ -44,7 +44,7 @@ FIELD EXTRACTION & NORMALIZATION
  Extract every key below; if absent or invalid, output the empty string "". Never hallucinate.
 <FIELDS>
 number
-passport number from OCR and mrzLine2 positions 1‑9; must match ^[A‑Z0-9]{{6,9}}$.
+passport number from OCR and mrzLine2 positions 1‑9 (only alphanumeric characters no ‘<’ at all); must match ^[A‑Z0-9]{{6,9}}$.
 country
 ISO 3166‑1 alpha‑3 code from OCR or MRZ.
 
@@ -694,6 +694,7 @@ Extract Name from OCR:
 
 
 Capture the given names from the OCR text.
+PUT THE ENTIRE GIVEN NAME in name
 
 
 Clean the OCR Name:
@@ -1218,62 +1219,17 @@ Issuing Authority: MAIN DEPARTMENT FOR IMMIGRATION AND NATIONALITY AFFAIRS
 Place of Issue → ETHIOPIA ✅
 
 
-country of issue
-Country of Issue must always be set to "ETHIOPIA" in uppercase (no variations allowed), regardless of the data extracted from OCR.
-Examples:
-Issuing Authority: MAIN DEPARTMENT FOR IMMIGRATION AND NATIONALITY AFFAIRS
-
-
-Country of Issue → ETHIOPIA ✅
-
-
-place of birth
-If any OCR variant of “ADDIS ABABA” is detected, normalize it to ADDIS ABABA.
-Examples:
-ADP BABA ➜ ADDIS ABABA
-JDIS ABABA ➜ ADDIS ABABA
-ADDIS ➜ ADDIS ABABA
-ADDIS ABABA ➜ ADDIS ABABA (no change)
-WONJI GEFERSA → WONJI GEFERSA (no change)
-BATILEJANA → BATILEJANA (no change)
-WOLLO → WOLLO (no change)
-MESKAN → MESKAN (no change)
-Same goes for all other birth places in ETHIOPIA.
-Other Place Name Guidelines:
-Do not alter other place names, even if they appear misspelled, unless they are clearly meant to be “ADDIS ABABA.”
-
-
-Example: GEMA ➜ GEMA (No Change — this is not a variation of ADDIS ABABA)
-
-
-Do not invent missing words. Only correct obvious OCR distortions.
-
-
-Example: WINCHP ASHORT ➜ WINCHPASHORT (Correcting a spacing error but no meaning change)
-In case OCR value is unapparent, resort to empty string “”
-
-
-Replace any special characters like hyphens (-), slashes (/), single angle brackets (<), or other symbols in place names with a single space.
-
-
-Example: T/MACHEW ➜ T MACHEW
-
-
-Example: S/TSAEDENBA ➜ S TSAEDENBA
-
-
-Example: SIMJABET ➜ SIMJABET (No change if correct spelling)
 
 
 name 
-Steps for Extraction & Cleaning:
-Extract Name from OCR:
+1. Capture Name from OCR:
+Extract the entire given name from the OCR text and store it in the variable name.
 
 
-Capture the given names from the OCR text.
+Ensure the entire string, including multiple words or parts of the given name, is captured in full.
 
 
-Clean the OCR Name:
+Apply the following cleaning steps to the extracted OCR name:
 
 
 Replace hyphens ("‑") with spaces.
@@ -1285,56 +1241,80 @@ Remove apostrophes.
 Strip diacritics (accent marks) from all characters.
 
 
-Extract Name from MRZ (mrzGivenNames):
+Ensure the result is one continuous, cleaned-up name (no truncated portions).
 
 
-Capture the given names from the MRZ text (from mrzGivenNames field).
+2. Extract Name from MRZ (mrzGivenNames):
+Capture all the given names from the MRZ text (from the mrzGivenNames field) after the surname and '<<'. Ensure all parts of the given name are captured, not just the first part.
+
+ Example:
 
 
-Final Clean-up:
+mrzGivenNames: "SOLOMON BEKELE"
 
 
-Apply the same cleaning rules to both OCR and MRZ names:
+First Name: "SOLOMON BEKELE" (include both names in the first name).
 
 
-Hyphens ("‑") → spaces.
+Apply the same cleaning steps (from step 1) to the mrzGivenNames.
 
 
-Apostrophes → removed.
+3. Final Clean-up and Comparison:
+Apply the following cleaning rules to both the OCR name and MRZ name:
+
+
+Replace hyphens ("‑") with spaces.
+
+
+Remove apostrophes.
 
 
 Strip diacritics.
 
 
-Put the entire given name in First Name (Include all parts of the given name).
+Put the entire cleaned name in First Name, including all parts of the given name. For example:
 
 
-Examples:
-Given Names: RAHEL GEDAY
-First Name → RAHEL GEDAY ✅
-Middle Name → "" ✅
+OCR Given Names: "RAHEL GEDAY"
 
 
-Given Names: MULUALEM BZUNEH
-First Name → MULUALEM BZUNEH ✅
-Middle Name → "" ✅
+First Name → "RAHEL GEDAY"
+
+
+Middle Name → "" (empty)
+
+
+OCR Given Names: "MULUALEM BZUNEH"
+
+
+First Name → "MULUALEM BZUNEH"
+
+
+Middle Name → "" (empty)
 
 
 Compare with MRZ Given Names:
 
 
-If the MRZ Name is non-empty and longer than one character, compare the OCR name with the MRZ name.
+If the MRZ name is non-empty and longer than one character, compare the OCR name with the MRZ given names.
 
 
-If there is a difference between the OCR name and MRZ given names, always prioritize the MRZ given names.
+If there is a difference between the OCR name and MRZ given names, prioritize the MRZ given names and use the MRZ name as the final one.
+
+
+Extract all given names from the MRZ, not just the first part.
 
 
 Example:
 
 
-OCR Given Names: CAZSOLOMON BEKELE
-MRZ Given Names: SOLOMON BEKELE
-First Name: SOLOMON BEKELE ✅
+OCR Given Names: "SOLOMON"
+
+
+MRZ Given Names: "SOLOMON BEKELE"
+
+
+First Name → "SOLOMON BEKELE" (prioritize MRZ name).
 middle name
 Always keep middle name as empty string (“”)
 surname
@@ -1389,6 +1369,51 @@ EP73030602ETH9309119F2704047<<<<<
 becomes
 
  EP73030602ETH9309119F2704047<<<<<<<<<<<<<<<<<<02
+country of issue
+Country of Issue must always be set to "ETHIOPIA" in uppercase (no variations allowed), regardless of the data extracted from OCR.
+Examples:
+Issuing Authority: MAIN DEPARTMENT FOR IMMIGRATION AND NATIONALITY AFFAIRS
+
+
+Country of Issue → ETHIOPIA ✅
+
+
+place of birth
+If any OCR variant of “ADDIS ABABA” is detected, normalize it to ADDIS ABABA.
+Examples:
+ADP BABA ➜ ADDIS ABABA
+JDIS ABABA ➜ ADDIS ABABA
+ADDIS ➜ ADDIS ABABA
+ADDIS ABABA ➜ ADDIS ABABA (no change)
+WONJI GEFERSA → WONJI GEFERSA (no change)
+BATILEJANA → BATILEJANA (no change)
+WOLLO → WOLLO (no change)
+MESKAN → MESKAN (no change)
+Same goes for all other birth places in ETHIOPIA.
+Other Place Name Guidelines:
+Do not alter other place names, even if they appear misspelled, unless they are clearly meant to be “ADDIS ABABA.”
+
+
+Example: GEMA ➜ GEMA (No Change — this is not a variation of ADDIS ABABA)
+
+
+Do not invent missing words. Only correct obvious OCR distortions.
+
+
+Example: WINCHP ASHORT ➜ WINCHPASHORT (Correcting a spacing error but no meaning change)
+In case OCR value is unapparent, resort to empty string “”
+
+
+Replace any special characters like hyphens (-), slashes (/), single angle brackets (<), or other symbols in place names with a single space.
+
+
+Example: T/MACHEW ➜ T MACHEW
+
+
+Example: S/TSAEDENBA ➜ S TSAEDENBA
+
+
+Example: SIMJABET ➜ SIMJABET (No change if correct spelling)
 
 
 CASE 3: Kenya - KEN - Kenyan
@@ -1396,81 +1421,151 @@ Scope
 Apply this section only when mrzLine1[3‑5] = KEN or the extracted country field already equals KEN.
 These rules supersede the master prompt only for the fields listed below.
 number
-Extraction Sources (priority order)
-MRZ candidate — characters 1‑9 of the fully reconstructed mrzLine2.
+Extract MRZ and OCR Candidates:
 
 
-OCR candidate — first token in cleaned OCR text that begins with AK, BK, or CK.
+MRZ Candidate: Use characters 1–9 of the fully reconstructed mrzLine2 from the MRZ (Machine Readable Zone). Only alphanumeric characters and STOP when you see ‘<’. Remove it and remove everything after it.
+
+Example:
+MRZ Line 2 1-9: CK114314<6
+MRZ Candidate: CK114314 (remove ‘<’ and everything after the ‘<’)
+Example:
+MRZ Line 2 1-9: B237205<<
+MRZ Candidate: B237205 (remove ‘<’ and everything after the ‘<’)
 
 
-Validation Pipeline
- Run the three checks in sequence for each candidate:
-Prefix & length check
+OCR Candidate: Extract the first token that begins with AK, BK, or CK from the cleaned OCR text.
 
 
-Token must be exactly 9 characters.
+Validation Pipeline:
 
 
-Characters 1‑2 must be AK, BK, or CK (uppercase).
+Prefix & Length Check:
 
 
-Digit check (positions 3‑9)
+Token must be at most 9 characters long.
 
 
-Characters 3‑9 must be digits 0‑9; no letters, spaces, or symbols.
+Characters 1–2 must be one of AK, BK, or CK (uppercase).
 
 
-Final regex confirmation
+Digit Check (positions 3–9):
 
 
-Token must match either ^AK\d{{7}}$, ^BK\d{{7}}$, or ^CK\d{{7}}$.
+Characters 3–9 must only be digits (0–9), no letters, spaces, or symbols allowed.
 
 
-If a candidate fails any step, reject it.
-Source Selection
-Use the validated MRZ candidate if available.
+Final Regex Confirmation:
 
 
-Otherwise, use the validated OCR candidate.
+Ensure the token matches one of the following regular expressions:
 
 
-If neither is valid, output "".
+^AK\d{7}$
 
 
-Store the raw OCR token (even if rejected) in original number.
-#### 1.4 Worked Examples (do not delete; add more as needed)
-✅ Valid
-AK1234567
+^BK\d{7}$
 
 
-BK0000000
+^CK\d{7}$
 
 
-CK9876543
+If any candidate fails any of these checks, reject it.
 
 
-AK7654321
+Source Selection:
 
 
-❌ Invalid
-AK123456   → too short (8 chars)
+Use the validated MRZ candidate if it’s available and passes the validation checks and the OCR candidate is invalid. Otherwise, use OCR candidate.
 
 
-BK12345678 → too long (10 chars)
+If the MRZ candidate is not available, use the validated OCR candidate.
 
 
-DK1234567  → wrong prefix
+If neither is valid, output an empty string ("").
 
 
-AK12345A7  → letter inside digit block
+Let’s walk through some of the examples you provided:
+Valid Case:
 
 
-AK 1234567 → space inside token
+AK13851569:
 
 
-AK1234-67  → hyphen inside token
+Prefix: AK (valid)
 
 
+Length: 9 characters (valid)
+
+
+Digits: 13851569 (valid)
+
+
+Final Regex: Matches ^AK\d{7}$ (valid)
+
+
+Output: AK13851569 ✅
+
+
+
+Invalid Case (Too Long):
+
+
+BK12345678:
+
+
+Length: 10 characters (invalid)
+
+
+Trim to 9 characters: BK1234567 ✅
+
+
+Invalid Case (Incorrect Prefix):
+
+
+DK1234567:
+
+
+Prefix DK is not valid.
+
+
+Output: Rejected ❌
+
+
+Invalid Case (Letter Inside Digits):
+
+
+AK12345A7:
+
+
+Contains letter A inside digit block (invalid).
+
+
+Output: Rejected ❌
+
+
+Invalid Case (Space Inside Token):
+
+
+AK 1234567:
+
+
+Contains space inside token (invalid).
+
+
+Output: Rejected ❌
+
+
+Invalid Case (Hyphen Inside Token):
+
+
+AK1234-67:
+
+
+Contains hyphen inside token (invalid).
+
+
+Output: Rejected ❌
 country
 Always set to the ISO‑alpha‑3 code KEN.
 
@@ -1881,6 +1976,157 @@ Purge intermediary strings and logs after processing to satisfy GDPR.
 CASE 6: Nepal – NPL - Nepali
 Scope
 Apply this section only when mrzLine1 characters 3‑5 equal NPL or the extracted country field already equals NPL. 
+number
+Extract MRZ and OCR Candidates:
+MRZ Candidate: Extract the first 9 characters from the fully reconstructed second line of the MRZ (Machine Readable Zone). Only alphanumeric characters (uppercase letters and digits) should be considered. If the character ‘<’ appears, remove it and everything after it.
+
+
+Example:
+MRZ Line 2 1-9: PA123456<7
+MRZ Candidate: PA123456 (remove ‘<’ and everything after it)
+
+
+MRZ Line 2 1-9: 123456<<
+MRZ Candidate: 123456 (remove ‘<’ and everything after it)
+
+
+OCR Candidate: Extract the first token that consists of alphanumeric characters, and the length of the token must be between 6 to 9 characters. It may start with "PA" but doesn't have to.
+
+
+Validation Pipeline:
+Length & Alphanumeric Check:
+
+
+Token length must be between 6 and 9 characters long.
+
+
+The token must only contain alphanumeric characters (uppercase letters A-Z and digits 0-9).
+
+
+Prefix Check:
+
+
+The token may or may not start with PA, but if it does, it should be followed by alphanumeric characters.
+
+
+Final Regex Confirmation:
+
+
+Ensure the token matches the following regular expression:
+
+
+^[A-Z0-9]{6,9}$ (for any alphanumeric token of 6 to 9 characters)
+
+
+If any candidate fails any of these checks, it should be rejected.
+Source Selection:
+Use the validated MRZ candidate if it’s available and passes the validation checks, and the OCR candidate is invalid.
+
+
+Otherwise, use the validated OCR candidate.
+
+
+If neither is valid, output an empty string ("").
+Examples
+Valid Case:
+
+
+OCR Candidate: PA123456
+
+
+Length: 8 characters (valid)
+
+
+Alphanumeric: PA123456 (valid)
+
+
+Final Regex: Matches ^[A-Z0-9]{6,9}$ (valid)
+
+
+Output: PA123456 ✅
+
+
+Valid Case (No "PA" Prefix):
+
+
+OCR Candidate: 123456
+
+
+Length: 6 characters (valid)
+
+
+Alphanumeric: 123456 (valid)
+
+
+Final Regex: Matches ^[A-Z0-9]{6,9}$ (valid)
+
+
+Output: 123456 ✅
+
+
+Invalid Case (Too Long):
+
+
+OCR Candidate: PA12345678
+
+
+Length: 10 characters (invalid)
+
+
+Trim to 9 characters: PA1234567 (valid)
+
+
+Output: PA1234567 ✅
+
+
+Invalid Case (Contains Invalid Character):
+
+
+OCR Candidate: PA12@3456
+
+
+Contains special character "@" (invalid).
+
+
+Output: Rejected ❌
+
+
+Invalid Case (Too Short):
+
+
+OCR Candidate: P12345
+
+
+Length: 5 characters (invalid)
+
+
+Output: Rejected ❌
+
+
+Invalid Case (Space Inside Token):
+
+
+OCR Candidate: PA 123456
+
+
+Contains space inside token (invalid).
+
+
+Output: Rejected ❌
+
+
+Invalid Case (Hyphen Inside Token):
+
+
+OCR Candidate: PA1234-56
+
+
+Contains hyphen inside token (invalid).
+
+
+Output: Rejected ❌
+
+
 place of birth
 Extraction Principle
 Begin with the text exactly as it appears in the OCR output (after collapsing multiple spaces).

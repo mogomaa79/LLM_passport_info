@@ -10,7 +10,6 @@ from src.passport_extraction import PassportExtraction
 from src.utils import save_results, upload_results, postprocess, mapper
 
 from langchain_google_genai import ChatGoogleGenerativeAI
-from langchain_openai import ChatOpenAI
 
 from langchain_core.runnables import RunnableLambda
 from langsmith import Client, evaluate
@@ -21,7 +20,6 @@ load_dotenv()
 
 LANGSMITH_API_KEY = os.getenv("LANGSMITH_API_KEY")
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
 DATASET_NAME = "Ethiopia"
 
@@ -66,10 +64,10 @@ def field_match(outputs: dict, reference_outputs: dict) -> float:
         correct += outputs["country"] == mapper[DATASET_NAME]
         correct += outputs["gender"] == reference_outputs["gender"][0]
         correct += outputs["name"] == reference_outputs["first name"]
-        correct += outputs["father name"] == ""
-        correct += outputs["mother name"] == ""
-        correct += outputs["middle name"] == ""
-        correct += outputs["surname"] == reference_outputs["last name"]
+        correct += outputs["father name"] == reference_outputs["last name"] if DATASET_NAME == "India" else ""
+        correct += outputs["mother name"] == reference_outputs["mother name"].split()[0] if DATASET_NAME == "India" else ""
+        correct += outputs["middle name"] == "" if DATASET_NAME != "Philippines" else reference_outputs["middle name"]
+        correct += outputs["surname"] == reference_outputs["last name"] if DATASET_NAME == "India" else reference_outputs["middle name"]
 
         return correct / 14
     
@@ -90,16 +88,8 @@ def main():
         temperature=1,
         max_tokens=30000,
         max_output_tokens=2048,
-        # thinking_budget=2048
+        # thinking_budget=2048,
     )
-
-    # llm = ChatOpenAI(
-    #     model="gpt-4o",
-    #     openai_api_key=OPENAI_API_KEY,
-    #     temperature=1,
-    #     max_tokens=50000,
-    #     max_completion_tokens=2048,
-    # )
 
     runnable = RunnableLambda(map_input_to_messages_lambda)
     llm_retry = llm.with_retry(retry_if_exception_type=(Exception, JSONDecodeError), stop_after_attempt=5)
