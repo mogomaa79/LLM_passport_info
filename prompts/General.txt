@@ -629,17 +629,10 @@ extract & translate to English if non‑Latin; always "" for Ethiopian or Kenyan
 
 mrzLine1
 Rule: Extract the full MRZ Line 1 including the padding < characters.
-
-
 Explanation: MRZ Line 1 is used in the passport to store key data, such as the surname, first name, passport number, and other relevant details. Ensure to preserve the full line exactly as it appears in the OCR, including padding (<).
-
 mrzLine2 
 Rule: Extract the full MRZ Line 2 including the padding < characters.
-
-
 Explanation: MRZ Line 2 contains important information such as date of birth, date of expiry, nationality, and personal identifiers. The full line must be extracted and preserved with the < padding.
-
-
 mrzDateOfBirth
 Source: Strictly parse from mrzLine2.
 Location: The date of birth is located at positions 14-19 in mrzLine2, formatted as YYMMDD.
@@ -674,6 +667,9 @@ Explanation: This field should contain the unmodified OCR country code exactly a
 original birth date
 Source: Extract the raw, unmodified OCR substring for the birth date.
 Rule: The original birth date should be converted to DD/MM/YYYY format.
+Example:
+OCR Birth date: 23 FEB 1987
+original birth date: 23/02/1987
 original gender
 Source: Extract the raw, unmodified OCR substring for the gender field.
 Explanation: This field should contain the raw OCR gender token exactly as it appears.
@@ -681,6 +677,9 @@ Example: If the OCR output is "F" (Female), then the original gender will be "F"
 original expiry date 
 Source: Extract the raw, unmodified OCR substring for the expiry date.
 Rule: The original expiry date should be converted to DD/MM/YYYY format.
+Example:
+OCR Expiry date: 12 DEC 2024
+original expiry date: 12/12/2024
 <COUNTRY RULES>
 CASE 1: Philippines - PHL – Filipino
 Scope of These Rules Apply this section only when either of the following is true:
@@ -1219,9 +1218,16 @@ Issuing Authority: MAIN DEPARTMENT FOR IMMIGRATION AND NATIONALITY AFFAIRS
 Place of Issue → ETHIOPIA ✅
 
 
-
-
 name 
+Ethiopian passports list the family name first in the visual zone, but do not flip the order.
+Example: If OCR reads ARARSE URGEA, keep exactly ARARSE URGEA.
+Compare the OCR name (visual zone) with mrzGivenNames from MRZ Line 1.
+If they differ character‑for‑character, always choose the name from MRZ Line 1.
+
+
+Example mismatch: FIREHIWOT AMARE (OCR) vs FIRIEHIWOT AMARE (MRZ) → use FIRIEHIWOT AMARE.
+
+
 1. Capture Name from OCR:
 Extract the entire given name from the OCR text and store it in the variable name.
 
@@ -1329,7 +1335,7 @@ MRZ surname: HAILE
 surname: Use HAILE (✅)
 
 
-Make sure to remove "ETH" from surname and mrzSurname to ensure only the surname remains.
+Make sure to remove "ETH" and anything remaining of it from surname and mrzSurname to ensure only the surname remains. Surname NEVER starts with “ETH”
 Example 1:
 OCR surname: AESWERAJ
 
@@ -1350,7 +1356,14 @@ MRZ surname: ETHERKO
 surname: Use ERKO (✅remove “ETH” from MRZ)
 
 
-MRZ Handling
+Example 3:
+OCR surname: ERKO
+
+
+MRZ surname: HERKO
+
+
+surname: Use ERKO (✅remove the remaining “H” of “ETH” from MRZ) 
 mrzLine1
 For EP numbers: P<ETH[SURNAME]<<[GIVEN_NAMES]<<<<…
 For EQ numbers: PQETH[SURNAME]<<[GIVEN_NAMES]<<<<…
@@ -1368,7 +1381,7 @@ EP73030602ETH9309119F2704047<<<<<
  
 becomes
 
- EP73030602ETH9309119F2704047<<<<<<<<<<<<<<<<<<02
+EP73030602ETH9309119F2704047<<<<<<<<<<<<<<<<<<02
 country of issue
 Country of Issue must always be set to "ETHIOPIA" in uppercase (no variations allowed), regardless of the data extracted from OCR.
 Examples:
@@ -1379,29 +1392,29 @@ Country of Issue → ETHIOPIA ✅
 
 
 place of birth
-If any OCR variant of “ADDIS ABABA” is detected, normalize it to ADDIS ABABA.
+If the OCR is a variant of “ADDIS ABABA” is detected, normalize it to ADDIS ABABA.
 Examples:
 ADP BABA ➜ ADDIS ABABA
 JDIS ABABA ➜ ADDIS ABABA
-ADDIS ➜ ADDIS ABABA
 ADDIS ABABA ➜ ADDIS ABABA (no change)
 WONJI GEFERSA → WONJI GEFERSA (no change)
 BATILEJANA → BATILEJANA (no change)
 WOLLO → WOLLO (no change)
 MESKAN → MESKAN (no change)
-Same goes for all other birth places in ETHIOPIA.
-Other Place Name Guidelines:
 Do not alter other place names, even if they appear misspelled, unless they are clearly meant to be “ADDIS ABABA.”
-
-
-Example: GEMA ➜ GEMA (No Change — this is not a variation of ADDIS ABABA)
+Examples
+GEMA ➜ GEMA (No Change — this is not a variation of ADDIS ABABA)
+DILLA → DILLA (Not ADDIS ABABA)
 
 
 Do not invent missing words. Only correct obvious OCR distortions.
 
 
 Example: WINCHP ASHORT ➜ WINCHPASHORT (Correcting a spacing error but no meaning change)
-In case OCR value is unapparent, resort to empty string “”
+In case OCR value is unapparent, resort to empty string → “”
+Example:
+OCR place of birth: “”
+Place of Birth: “”
 
 
 Replace any special characters like hyphens (-), slashes (/), single angle brackets (<), or other symbols in place names with a single space.
@@ -1411,9 +1424,6 @@ Example: T/MACHEW ➜ T MACHEW
 
 
 Example: S/TSAEDENBA ➜ S TSAEDENBA
-
-
-Example: SIMJABET ➜ SIMJABET (No change if correct spelling)
 
 
 CASE 3: Kenya - KEN - Kenyan
@@ -1834,7 +1844,6 @@ Never output a passport number that fails the regex.
 
 
 Purge rejected tokens and logs after processing (GDPR).
-
 
 
 CASE 5: Uganda - UGA - Ugandan
@@ -2804,11 +2813,12 @@ Trim leading/trailing spaces.
 
 
 Split the cleaned string by space.
-
-
 Return only the first word as the mother’s name.
-
-
+Make sure the name is a female name. If not, redo the OCR and see if the name was mistaken with Father’s name or Spouse name. 
+Example:
+Father Name: MANNU 
+Mother Name: BABBU
+Father Name: BABBU, Mother Name: MANNU. Switch because MANNU is female name in India and BABBU is male name
 DO NOT
 ❌ Do not extract from "Name of Father" or "Name of Spouse" fields.
 

@@ -21,12 +21,13 @@ load_dotenv()
 LANGSMITH_API_KEY = os.getenv("LANGSMITH_API_KEY")
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
 
-DATASET_NAME = "Ethiopia"
+DATASET_NAME = "India"
+MODEL = "gemini-2.5-flash-preview-04-17"
+SPLITS = ["base"]
 
-MODEL = "gemini-2.0-flash"
 GOOGLE_SHEETS_CREDENTIALS_PATH = "credentials.json"
 SPREADSHEET_ID = "1ljIem8te0tTKrN8N9jOOnPIRh2zMvv2WB_3FBa4ycgA"
-PROJECT_NAME = f"{DATASET_NAME} - {MODEL} - {random.randint(0, 100)}"
+PROJECT_NAME = f"{DATASET_NAME} - {MODEL} - {random.randint(0, 1000)}"
 
 def get_prompt():
     """Load the prompt for a specific country"""
@@ -64,10 +65,10 @@ def field_match(outputs: dict, reference_outputs: dict) -> float:
         correct += outputs["country"] == mapper[DATASET_NAME]
         correct += outputs["gender"] == reference_outputs["gender"][0]
         correct += outputs["name"] == reference_outputs["first name"]
-        correct += outputs["father name"] == reference_outputs["last name"] if DATASET_NAME == "India" else ""
-        correct += outputs["mother name"] == reference_outputs["mother name"].split()[0] if DATASET_NAME == "India" else ""
-        correct += outputs["middle name"] == "" if DATASET_NAME != "Philippines" else reference_outputs["middle name"]
-        correct += outputs["surname"] == reference_outputs["last name"] if DATASET_NAME == "India" else reference_outputs["middle name"]
+        correct += outputs["father name"] == (reference_outputs["last name"] if DATASET_NAME == "India" else "")
+        correct += outputs["mother name"] == (reference_outputs["mother name"].split()[0] if DATASET_NAME == "India" else "")
+        correct += outputs["middle name"] == ("" if DATASET_NAME != "Philippines" else reference_outputs["middle name"])
+        correct += outputs["surname"] == (reference_outputs["middle name"] if DATASET_NAME == "India" else reference_outputs["last name"])
 
         return correct / 14
     
@@ -85,10 +86,10 @@ def main():
     llm = ChatGoogleGenerativeAI(
         model=MODEL,
         google_api_key=GOOGLE_API_KEY,
-        temperature=1,
+        temperature=0.5,
         max_tokens=30000,
-        max_output_tokens=2048,
-        # thinking_budget=2048,
+        max_output_tokens=1024,
+        thinking_budget=4096 if "2.5" in MODEL else None,
     )
 
     runnable = RunnableLambda(map_input_to_messages_lambda)
@@ -115,7 +116,7 @@ def main():
     try:
         results = evaluate(
             target,
-            data=client.list_examples(dataset_name=DATASET_NAME, splits=["base"]),
+            data=client.list_examples(dataset_name=DATASET_NAME, splits=SPLITS),
             evaluators=[field_match, full_passport],
             experiment_prefix=f"{MODEL} ",
             client=client,
