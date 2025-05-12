@@ -19,11 +19,11 @@ from langchain_core.output_parsers import JsonOutputParser
 load_dotenv()
 
 LANGSMITH_API_KEY = os.getenv("LANGSMITH_API_KEY")
-GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
+GOOGLE_API_KEY = "AIzaSyBpQUxIZAnVIPviyMfbGIY5nlR_BnTCVJE"
 
 DATASET_NAME = "India"
-MODEL = "gemini-2.5-flash-preview-04-17"
-SPLITS = ["base"]
+MODEL = "gemini-2.5-pro-exp-03-25"
+SPLITS = ["errors"]
 
 GOOGLE_SHEETS_CREDENTIALS_PATH = "credentials.json"
 SPREADSHEET_ID = "1ljIem8te0tTKrN8N9jOOnPIRh2zMvv2WB_3FBa4ycgA"
@@ -86,10 +86,10 @@ def main():
     llm = ChatGoogleGenerativeAI(
         model=MODEL,
         google_api_key=GOOGLE_API_KEY,
-        temperature=0.5,
+        temperature=0.0,
         max_tokens=30000,
         max_output_tokens=1024,
-        thinking_budget=4096 if "2.5" in MODEL else None,
+        thinking_budget=2048 if "2.5" in MODEL else None,
     )
 
     runnable = RunnableLambda(map_input_to_messages_lambda)
@@ -110,7 +110,7 @@ def main():
         
         formatted_inputs = {"multimodal_prompt": inputs["multimodal_prompt"]}
         results = llm_chain_factory().invoke(formatted_inputs)
-        time.sleep(1)
+        # time.sleep(1)
         return results
     
     try:

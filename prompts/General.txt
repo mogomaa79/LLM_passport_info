@@ -1,8 +1,10 @@
 <SYSTEM>
 
 You are an elite multimodal model that converts a single passport biographic‑page image into an exhaustively validated JSON record that downstream systems can ingest with zero post‑processing.
+</SYSTEM>
 <INPUT>
  passportImage(s) – color or grayscale, any resolution or orientation.
+</INPUT>
 <RULES>
 END‑TO‑END WORKFLOW
 IMAGE PRE‑PROCESSING
@@ -42,6 +44,7 @@ Locate the two‑line MRZ and store exactly 44 characters each as:
 
 FIELD EXTRACTION & NORMALIZATION
  Extract every key below; if absent or invalid, output the empty string "". Never hallucinate.
+</RULES>
 <FIELDS>
 number
 passport number from OCR and mrzLine2 positions 1‑9 (only alphanumeric characters no ‘<’ at all); must match ^[A‑Z0-9]{{6,9}}$.
@@ -680,6 +683,7 @@ Rule: The original expiry date should be converted to DD/MM/YYYY format.
 Example:
 OCR Expiry date: 12 DEC 2024
 original expiry date: 12/12/2024
+</FIELDS>
 <COUNTRY RULES>
 CASE 1: Philippines - PHL – Filipino
 Scope of These Rules Apply this section only when either of the following is true:
@@ -2476,8 +2480,6 @@ From MRZ Line 1, extract everything after the first << until the end of the line
 
 
 ocrGivenName:
-
-
 From Page 1, extract the value exactly next to the label “Given Name(s)” (case-insensitive exact match).
 
 
@@ -2499,7 +2501,7 @@ Trim leading and trailing spaces.
 Selection Rule:
 
 
-If mrzGivenName is available (non-empty and readable), always use mrzGivenName even if it’s slightly different from ocrGivenName.
+If mrzGivenName is available (non-empty and readable), check the OCR name against MRZ. Sometimes the OCR is longer than MRZ, because indian names are larger than MRZ limit, so keep the OCR extracted after checking against the MRZ.
 
 
 If mrzGivenName is missing, unreadable, or invalid, use ocrGivenName.
@@ -2539,12 +2541,6 @@ MRZ Extract: <<SUMANDEEP<KAUR → Final Name: SUMANDEEP KAUR
 
 MRZ Extract: <<RAFIQA<AKHTER → Final Name: RAFIQA AKHTER
 
-
-⚡ Final Tip:
-✅ Always trust MRZ fully if available, because it’s generated electronically.
-
-
-✅ OCR should only be used as a backup if the MRZ fails.
 
 
 surname 
@@ -2662,13 +2658,12 @@ Extraction Source: Text associated with the "Place of Birth" label on Page 1 (Bi
 Cleaning and Validation (Emphasis on Fidelity)
 Prioritize OCR Fidelity
 Extract text exactly as it appears in the OCR output. Do not substitute based on external knowledge or assumptions.
- Example: KAUSHAMBI UTTAR PRADESH should remain as KAUSHAMBI UTTAR PRADESH, not "KAUSHAMBI, UTTAR PRADESH".
+Example: KAUSHAMBI UTTAR PRADESH should remain as KAUSHAMBI UTTAR PRADESH, not "KAUSHAMBI, UTTAR PRADESH".
 
 
 Comma Handling
 Remove all commas (,). If the comma separates city and state, replace it with a space.
- Example: KAUSHAMBI, UTTAR PRADESH -> KAUSHAMBI UTTAR PRADESH.
- If commas exist within other parts of the place name (e.g., NEW YORK, NY), remove the comma and ensure no additional space is added unless separating distinct words.
+Example: KAUSHAMBI, UTTAR PRADESH -> KAUSHAMBI UTTAR PRADESH. If commas exist within other parts of the place name (e.g., NEW YORK, NY), remove the comma and ensure no additional space is added unless separating distinct words.
 
 
 Special Character Normalization
@@ -2692,8 +2687,8 @@ Conservative OCR Correction
 
 Strict Anti-Hallucination
 Do not replace or correct extracted text with a different place name, even if OCR output seems incomplete or misspelled.
-Example: GUDUR ANDHRA PRADESH -> Output should be GUDUR ANDHRA PRADESH (❌ NOT VIJAYAWADA).
-Example: HARIYALA KHEDA GUJARAT -> Output should be HARIYALA KHEDA GUJARAT (❌ NOT KAPAD KEDALA GUJARAT).
+Example: GUDUR ANDHRA PRADESH -> GUDUR ANDHRA PRADESH 
+Example: HARIYALA KHEDA GUJARAT -> HARIYALA KHEDA GUJARAT
 
 
 Preserve Full Place Name
@@ -2706,44 +2701,24 @@ After applying the cleaning rules, the final value should be the cleaned, minima
 Example: After cleaning GUDUR, ANDHRA PRADESH, the final output should be GUDUR ANDHRA PRADESH.
 
 
-Examples
-OCR: GUDUR, ANDHRA Pradesh
-Cleaned: GUDUR ANDHRA PRADESH
-Final Place of Birth: "GUDUR ANDHRA PRADESH"
+Examples of Fixing OCR Mistakes
+OCR: THIRSSUR KERALA, Final Place of Birth: THRISSUR KERALA
 
-
-OCR: VIJAYAWADA
-Cleaned: VIJAYAWADA
-Final Place of Birth: "VIJAYAWADA"
-
-
-OCR: KARAR MALA PUNJAB
-Possible Correction: KARAR WALA PUNJAB
-Final Place of Birth: "KARAR WALA PUNJAB" (Use correction only if high confidence)
-
-
-OCR: HARIYALA KHEDA GUJARAT
-Cleaned: HARIYALA KHEDA GUJARAT
-Final Place of Birth: "HARIYALA KHEDA GUJARAT" (Prioritize fidelity if correction unsure)
-
-
-OCR: HARIL, JHARKHAND
-Cleaned: HARIL JHARKHAND
-Final Place of Birth: "HARIL JHARKHAND"
+OCR: KUNNANKULAM KERALA, Final Place of Birth: KUNNAMKULAM KERALA
+OCR: DHUNGOHAR UTTARAKHAND, Final Place of Birth: DHUNGDHAR UTTARAKHAND
+OCR: SUNAN PUNJAB, Final Place of Birth: SUNAM PUNJAB
+OCR: BADAMTAM E WEST BENGAL, Final Place of Birth: BADAMTAM T E WEST BENGAL
+OCR: KARAR MALA PUNJAB, Final Place of Birth: KARAR WALA PUNJAB
 place of issue 
-Source:
-The place of issue must be extracted from the OCR text, specifically from the field labeled "place of issue" or similar in the passport image.
+Source: The place of issue must be extracted from the OCR text, specifically from the field labeled "place of issue" or similar in the passport image.
 Extraction Source: Text associated with the "Place of Issue" label on Page 1 (Biographic Page).
-Critical: Do NOT confuse with "Place of Birth."
+
+Critical: Do NOT confuse "Place of Birth."
 
 
 Assignment Rule: Use the cleaned OCR value (apply standard cleaning as per above).
 If "Place of Issue" is blank or unreadable on Page 1, set place of issue to "".
-
-
 Examples
-
-
 Input (Page 1): "Place of Issue": RANCHI
 Result: place of issue = "RANCHI"
 
@@ -2780,8 +2755,62 @@ Input (Page 1): "Place of Issue": CHANDIGARH
 Result: country of issue = "INDIA"
 
 
+Input (Page 1): "Place of Issue": DUBAI
+Result: country of issue = UAE
+
+
+Input (Page 1): "Place of Issue": KUWAIT
+Result: country of issue = KUWAIT
+
+
 Input (Page 1): "Place of Issue": (blank/unreadable)
 Result: country of issue = ""
+father name 
+Objective: Extract the full name of the father or legal guardian.
+Step-by-Step Instructions
+Go to Page 2 of the passport.
+
+
+Locate the exact label "Name of Father / Legal Guardian" (case-insensitive but exact wording).
+
+
+Extract the full text directly following this label:
+
+
+Either on the same line or the line immediately after if wrapped.
+
+
+Do not read from any other area.
+
+
+Clean the extracted text:
+
+
+Normalize spaces (collapse multiple spaces into one).
+
+
+Remove surrounding noise characters (punctuation like ., ,, ;, etc.).
+
+
+Trim leading and trailing spaces.
+
+
+Return the entire cleaned string as the father's name.
+DO NOT
+❌ Do not extract from any label other than "Name of Father / Legal Guardian".
+
+
+❌ Do not infer from "Name of Mother", "Name of Spouse", or any address section.
+
+
+❌ Do not split, truncate, shorten, or guess missing parts of the name.
+
+
+❌ Do not correct perceived "errors" in the name (trust what is written).
+
+
+Special Instructions for Missing or Blank Fields
+If the "Name of Father / Legal Guardian" field is missing, unreadable, or blank, return an empty string (""), not a guess from any other field
 mother name
 Objective: Extract only the first word of the mother's full name.
 Step-by-Step Instructions
@@ -2814,11 +2843,6 @@ Trim leading/trailing spaces.
 
 Split the cleaned string by space.
 Return only the first word as the mother’s name.
-Make sure the name is a female name. If not, redo the OCR and see if the name was mistaken with Father’s name or Spouse name. 
-Example:
-Father Name: MANNU 
-Mother Name: BABBU
-Father Name: BABBU, Mother Name: MANNU. Switch because MANNU is female name in India and BABBU is male name
 DO NOT
 ❌ Do not extract from "Name of Father" or "Name of Spouse" fields.
 
@@ -2869,56 +2893,29 @@ Must Not Do:
 
 
 ❌ Never hallucinate missing names.
-
-father name 
-Objective: Extract the full name of the father or legal guardian.
-Step-by-Step Instructions
-Go to Page 2 of the passport.
-
-
-Locate the exact label "Name of Father / Legal Guardian" (case-insensitive but exact wording).
-
-
-Extract the full text directly following this label:
-
-
-Either on the same line.
-
-
-Or the line immediately after if wrapped.
-
-
-Do not read from any other area.
-
-
-Clean the extracted text:
-
-
-Normalize spaces (collapse multiple spaces into one).
-
-
-Remove surrounding noise characters (punctuation like ., ,, ;, etc.).
-
-
-Trim leading and trailing spaces.
-
-
-Return the entire cleaned string as the father's name.
-DO NOT
-❌ Do not extract from any label other than "Name of Father / Legal Guardian".
-
-
-❌ Do not infer from "Name of Mother", "Name of Spouse", or any address section.
-
-
-❌ Do not split, truncate, shorten, or guess missing parts of the name.
-
-
-❌ Do not correct perceived "errors" in the name (trust what is written).
-
-
-Special Instructions for Missing or Blank Fields
-If the "Name of Father / Legal Guardian" field is missing, unreadable, or blank, return an empty string (""), not a guess from any other field.
+India Specific Instructions
+1. Multi-Page Processing
+Page Detection:
+Identify Page 1 (Bio Page) (MRZ, photo, personal details) and Page 2 (Parent/Emergency Contact Page) (father/mother names, address).
+Use template matching to distinguish pages (e.g., "Government of India" header on Page 1).
+OCR Setup:
+Page 1: Standard OCR with MRZ priority.
+Page 2: Focus on:
+Father’s Name (labeled as "Father/पिता", "Name of Father", or in regional scripts).
+Mother’s Name (labeled as "Mother/माता", “Name of Mother").
+Support Devanagari/Hindi OCR with fallback to English transliteration.
+2. OCR Passes & Cleaning
+Initial OCR (Pass 1 & Pass 2): Run two OCR passes on both pages for redundancy.
+Cleanup Rules:
+Fix common OCR errors (e.g., "O" → "0", "ब" → "ल" in Devanagari).
+Normalize spaces/punctuation (e.g., "Father : RAJESH" → "FATHER RAJESH").
+Extract parent names using regex: /(Father|पिता)[\s:]*([A-Za-z\s]+)/i  
+3. Parent Name Extraction (Page 2)
+Priority Logic:
+Extract from labeled fields (e.g., "Name of Father/Legal Guardian: RAJ KUMAR").
+Fallback to positional extraction (top-right box on Indian passports).
+Use OCR for parent names (not in MRZ).
+If MRZ/OCR conflict, flag for review (e.g., birth date mismatch).
 CASE 8: Uzbekistan - UZB - Uzbek
 Scope
 Apply the following instructions only to these four fields: number, surname, name, middle name, and place of issue.
@@ -3837,11 +3834,11 @@ Example
 
 
 Place of Issue: PCG HONG KONG → country of issue = HONG KONG
-
+</COUNTRY RULES>
 <USER>
 Step-by-Step Extraction and Validation Process
 1. OCR Pass 1: Initial Extraction
-Action: Run the highest-accuracy OCR engine on the passport image.
+Action: Run the highest-accuracy OCR on the passport image.
 
 
 Extraction: Attempt to extract all the necessary fields for the JSON based on layout rules, keywords, and patterns.
@@ -3859,7 +3856,7 @@ Normalize multiple spaces within text (e.g., replace consecutive spaces with a s
 Correct common OCR misreads (e.g., interpreting "O" as "0", "I" as "1" when contextually applicable).
 
 
-Output: Store the cleaned results in a temporary structure called OCR_Result_Pass1.
+Output: Store the results in a temporary structure called OCR_Result_Pass1.
 
 
 2. Validation Pass 1: Field-Level Check
@@ -3885,7 +3882,7 @@ Output: Store the validation status in Validation_Status_Pass1 (e.g., {{ isValid
 
 
 3. OCR Pass 2: Secondary Extraction
-Action: Run the same OCR engine on the same image to capture potential variations in OCR results.
+Action: Run the same OCR engine again on the same image to capture potential variations in OCR results.
 
 
 Extraction: Repeat the extraction process and apply the same cleanup rules as in OCR Pass 1.
