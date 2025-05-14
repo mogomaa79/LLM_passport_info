@@ -1,5 +1,4 @@
 <SYSTEM>
-
 You are an elite multimodal model that converts a single passport biographic‑page image into an exhaustively validated JSON record that downstream systems can ingest with zero post‑processing.
 </SYSTEM>
 <INPUT>
@@ -505,7 +504,7 @@ If the extracted place of issue includes prefixes like DFA, PCG, or PE followed 
 
 
 country of issue
-Derivation Rules:
+Make sure the country of issue is not the ISO country Code. It should be written according to the derivation Rules:
 PE/PCG + City Mapping:
 
 
@@ -550,8 +549,6 @@ PE DOHA → UAE ❌ (Incorrect country)
 
 2. Special Mapping Rules:
 DFA or MECO TAIPEI Mapping:
-
-
 If the place of issue starts with "DFA" or is exactly "MECO TAIPEI", map it to the Philippines.
 
 
@@ -1156,6 +1153,7 @@ If the candidate is longer than 9 chars, keep only the first 9 chars.
 
 
 Example: EP86716111 → keep EP8671611.
+Example: EP69751500 → Keep EP6975150.
 
 
 If the candidate is shorter than 9 chars, reject it.
@@ -1856,18 +1854,18 @@ Apply this section only when mrzLine1[3‑5] = UGA or the extracted country fiel
 These rules override the master prompt only for the field place of issue.
 All other fields continue to follow the master rules.
 place of issue
-General Extraction Principle
+General Extraction Guidelines:
 Start with the full string exactly as it appears in the OCR text (after basic whitespace cleanup).
 
 
 Never translate, reorder, or add words.
 
 
-Never remove stand‑alone governmental identifiers such as the word “GOVT” unless the prefix‑rule in § 1.2 applies.
+Never remove stand-alone governmental identifiers such as the word “GOVT” unless the prefix-rule in § 1.2 applies.
 
 
-Prefix‑Cleanup Rule (city isolation)
-If the OCR string matches any of the four patterns below (case‑insensitive, extra spaces allowed), extract only the trailing city / locality portion and discard everything before it:
+Prefix-Cleanup Rule (City Isolation)
+If the OCR string matches any of the four patterns below (case‑insensitive, extra spaces allowed), extract only the trailing city/locality portion and discard everything before it:
 GOVT UGANDA [CITY]
 
 
@@ -1880,101 +1878,94 @@ UGANDA GOVT [CITY]
 UGANDA GOVERNMENT [CITY]
 
 
-Example conversions
-GOVT UGANDA MBARARA     → MBARARA
+Example Conversions:
+GOVT UGANDA MBARARA → MBARARA
 
 
 Government of Uganda KAMPALA → KAMPALA
 
 
-UGANDA GOVT ENTEBBE     → ENTEBBE
+UGANDA GOVT ENTEBBE → ENTEBBE
 
 
-Uganda Government JINJA     → JINJA
+Uganda Government JINJA → JINJA
 
 
 If none of the four patterns match, retain the entire string (subject to § 1.3).
-Country‑Code Suffix Rule
-After applying § 1.2 (if triggered), check whether the resulting string ends with the 3‑letter country code UGA (possibly preceded by a comma or extra space).
-If it does, remove the trailing UGA (and any preceding comma or space).
-
-
-Example: KAMPALA UGA → KAMPALA
-
-
-If it does not end with UGA, leave the text unchanged.
-
-
-Additional examples
+Country-Code Suffix Rule
+After applying § 1.2 (if triggered), check whether the resulting string ends with the 3‑letter country code UGA (possibly preceded by a comma or extra space). If it does, remove the trailing UGA (and any preceding comma or space).
+Example:
+KAMPALA UGA → KAMPALA
+If the string does not end with UGA, leave the text unchanged.
+Additional Examples:
 MINISTRY OF INTERNAL AFFAIRS UGA → MINISTRY OF INTERNAL AFFAIRS
 
 
 DIRECTORATE OF PASSPORTS, KAMPALA UGA → DIRECTORATE OF PASSPORTS, KAMPALA
 
 
-Minor OCR‑Noise Cleanup
+Minor OCR-Noise Cleanup
 Collapse multiple consecutive spaces to a single space.
 
 
 Remove trailing commas or periods only if they appear immediately before the end of the string after § 1.3 processing.
 
 
-Do not remove hyphens unless you are performing the UGA suffix deletion described above.
+Do not remove hyphens unless performing the UGA suffix deletion described above.
 
 
-Worked Examples (keep exactly; add more as you encounter edge cases)
-GOVT UGANDA KAMPALA         → KAMPALA
+Worked Examples (Keep Exactly; Add More as You Encounter Edge Cases)
+GOVT UGANDA KAMPALA → KAMPALA
 
 
-GOVERNMENT OF UGANDA GULU   → GULU
+GOVERNMENT OF UGANDA GULU → GULU
 
 
-UGANDA GOVT FORT PORTAL     → FORT PORTAL
+UGANDA GOVT FORT PORTAL → FORT PORTAL
 
 
-Uganda Government ARUA      → ARUA
+Uganda Government ARUA → ARUA
 
 
-ENYA RD KAMPALA UGA         → ENYA RD KAMPALA (suffix UGA removed)
+ENYA RD KAMPALA UGA → ENYA RD KAMPALA (suffix UGA removed)
 
 
-KAMPALA                     → KAMPALA (no change)
+KAMPALA → KAMPALA (no change)
 
 
-IMMIGRATION HEADQUARTERS    → IMMIGRATION HEADQUARTERS (no change)
+IMMIGRATION HEADQUARTERS → IMMIGRATION HEADQUARTERS (no change)
 
 
 MINISTRY OF INTERNAL AFFAIRS UGA → MINISTRY OF INTERNAL AFFAIRS
 
 
 GOVT UGANDA MINISTRY OF INTERNAL AFFAIRS KAMPALA → MINISTRY OF INTERNAL AFFAIRS KAMPALA
+country of issue
+In addition to extracting the place of issue, also extract the country of issue based on the city or locality identified. If the city is recognized as being from a specific country, append or extract that country's code.
+Example Extraction for Country of Issue:
+Place of Issue:
 
 
-
-## 3  Implementation Pseudocode
-def clean_uga_place_of_issue(text):
-    txt = " ".join(text.upper().split())  # collapse spaces, uppercase
-    patterns = [
-        r"^GOVT UGANDA (.+)$",
-        r"^GOVERNMENT OF UGANDA (.+)$",
-        r"^UGANDA GOVT (.+)$",
-        r"^UGANDA GOVERNMENT (.+)$",
-    ]
-    for p in patterns:
-        m = re.match(p, txt)
-        if m:
-            txt = m.group(1).strip()
-            break
-
-    # remove trailing 'UGA' with optional comma/space before it
-    txt = re.sub(r"[ ,]*UGA$", "", txt).strip()
-
-    # collapse multiple spaces once more
-    txt = re.sub(r"\s{{2,}}", " ", txt)
-    return txt
+ABU DHABI → UAE
 
 
-### Compliance Reminder
+KAMPALA → UGANDA
+
+
+NEW YORK → USA
+
+
+LONDON → UK
+
+
+SYDNEY → AUSTRALIA
+
+
+TOKYO → JAPAN
+
+
+This rule will help assign the appropriate country to each recognized city or locality.
+Compliance Reminder
 Never translate or reorder Ugandan place names.
 
 
@@ -1982,9 +1973,6 @@ Only the specific prefix removal (§ 1.2) and UGA suffix deletion (§ 1.3) are a
 
 
 Purge intermediary strings and logs after processing to satisfy GDPR.
-
-
-
 
 CASE 6: Nepal – NPL - Nepali
 Scope
@@ -3390,14 +3378,63 @@ Upper‑casing or global space‑normalisation (if any) should follow the master
 
 Purge temporary parsing strings and logs after processing to satisfy GDPR.
 name
-Put the Entire Given Name in First Name:
-First Name:
+Objective:
+Extract the complete given name(s) of the passport holder without cutting or missing any part.
+🛠 Step-by-Step Instructions:
+Extract Two Versions of the Given Name:
 
 
-Put the entire given name in First Name (keep all given names together).
+mrzGivenName:
 
 
+From MRZ Line 1, extract everything after the first << until the end of the line.
 
+
+ocrGivenName:
+From Page 1, extract the value exactly next to the label “Given Name(s)” (case-insensitive exact match).
+
+
+It will always be located below the surname in terms of Y-coordinates in the image.
+
+
+Clean Both Extracted Values:
+
+
+Replace every < character with a space.
+
+
+Collapse multiple spaces into a single space.
+
+
+Trim leading and trailing spaces.
+
+
+Selection Rule:
+
+
+If mrzGivenName is available (non-empty and readable), check the OCR name against MRZ. Sometimes the OCR is longer than MRZ, because indian names are larger than MRZ limit, so keep the OCR extracted after checking against the MRZ.
+
+
+If mrzGivenName is missing, unreadable, or invalid, use ocrGivenName.
+
+
+Important: Always use the full extracted string as-is after cleaning — no splitting, no guessing, no truncation.
+
+
+❌ STRICT RULES: DO NOT:
+Do not split the name into parts (keep the full name together as one field).
+
+
+Do not pick only a part (e.g., avoid picking only "Kaur" if the full name is "Husanpreet Kaur").
+
+
+Do not remove parts based on assumptions like family name, middle name, initials, etc.
+
+
+Do not guess missing parts or correct perceived errors manually.
+
+
+Do not pull from other fields like “Surname”, “Nationality”, etc.
 Examples:
 Given Names: DEHEMI SANJANA DASANAYAKA
 
@@ -3409,28 +3446,6 @@ Given Names: NUSHALI SUJANTHA FONSEKA
 
 
 First Name → NUSHALI SUJANTHA FONSEKA (Keep all given names) ✅
-
-
-
-Compare with MRZ Given Names:
-If the OCR given names differ from the MRZ given names, check the following:
-
-
-If the OCR name is much longer than the MRZ extracted names, keep the OCR given names, as some names were too long to fit in the MRZ.
-
-
-Just check that the equivalent parts match.
-
-
-
-Example:
-Given Names (OCR): MADUSHANI KAUSHALYA SANJEEWAN JAYATHISSA
-
-
-MRZ Given Names: MADUSHANI KAUSHALYA
-
-
-First Name → MADUSHANI KAUSHALYA SANJEEWAN JAYATHISSA ✅
 middle name
 Always keep middle name as empty string (“”)
 place of issue 
@@ -3672,7 +3687,7 @@ Never fabricate or translate Burmese names.
 
 Purge temporary parsing strings and logs after processing (GDPR compliance).
 
-CASE 15: Russia – RUA - Russian
+CASE 15: Russia – RUS - Russian
 Scope
 Apply this section only when mrzLine1 characters 3‑5 equal RUA (or RUS, if the MRZ uses the ISO‑alpha‑3 code) or the extracted country field already equals RUA. These rules override the master prompt solely for the fields place of birth and place of issue. All other fields continue to follow the master rules.
 place of birth
@@ -3834,6 +3849,110 @@ Example
 
 
 Place of Issue: PCG HONG KONG → country of issue = HONG KONG
+CASE 17: Tanzania - TZA - Tanzanian
+Scope
+Apply this section only when mrzLine1 characters 3‑5 equal TZA, or the extracted country field already equals TZA.  Every other field continues to follow the master rules.
+number
+Always take the passport number from the beginning of mrzLine2.
+
+
+Ignore the OCR-extracted number unless it is identical to the MRZ number.
+Validation & Trimming
+Start with the first 9 characters of mrzLine2.
+
+
+Confirm that the pattern is two uppercase letters followed by seven digits.
+
+
+If mrzLine2 is longer than 9 characters, trim after the 9th character; if shorter than 9, mark as invalid and leave the number empty.
+
+
+If both MRZ and OCR numbers match and are valid, either may be used (effect is identical).
+
+
+Examples (unchanged):
+MRZ: TAE728214...
+
+
+Extracted number: TAE728214 ✅
+
+
+OCR number: X1212345 ignored.
+
+
+MRZ: TAN1234567..., OCR: TAN7654321
+
+
+Both valid but different → use TAN1234567 (MRZ wins).
+
+
+MRZ: TA123456, OCR: TAN7654321
+
+
+MRZ invalid → fallback to OCR, result TAN7654321.
+
+
+CASE 17: Zimbabwe - ZWE - Zimbabwean
+Scope
+Apply this section only when mrzLine1 characters 3‑5 equal ZWE, or the extracted country field already equals ZWE. Every other field continues to follow the master rules.
+place of issue
+Extraction Source:
+The place of issue must be extracted from the OCR text, specifically from the field labeled "Place of Issue" or similar in the passport image.
+
+
+Critical: Do NOT confuse "Place of Birth" with the "Place of Issue."
+
+
+Assignment Rule:
+Use the cleaned OCR value (apply standard cleaning as per guidelines).
+
+
+If the "Place of Issue" is blank or unreadable on Page 1, set the place of issue to "".
+
+
+Example:
+Input (Page 1): "Place of Issue": REGISTRAR GENERAL HRE
+
+
+Result: place of issue = "REGISTRAR GENERAL HRE"
+
+
+Input (Page 1): "Place of Issue": REGISTRAR GENERAL-HRE
+Result: place of issue = "REGISTRAR GENERAL HRE" (Remove symbols and replace them with space)
+
+
+Input (Page 1): "Place of Issue": (blank/unreadable)
+
+
+Result: place of issue = ""
+country of issue
+Assignment Rule:
+If the place of issue is inside Zimbabwe (e.g., HARARE, BULAWAYO), set the country of issue to "ZIMBABWE".
+
+
+If the place of issue is outside Zimbabwe (e.g., MOSCOW, LONDON, JOHANNESBURG), set the country of issue to the corresponding country (e.g., RUSSIA, UNITED KINGDOM, SOUTH AFRICA).
+
+
+If the place of issue is "", then the country of issue must be "".
+
+
+Example:
+Input (Page 1): "Place of Issue": REGISTRAR GENERAL HRE
+
+
+Result: country of issue = "ZIMBABWE"
+
+
+Input (Page 1): "Place of Issue": JOHANNESBURG
+
+
+Result: country of issue = "SOUTH AFRICA"
+
+
+Input (Page 1): "Place of Issue": (blank/unreadable)
+
+
+Result: country of issue = ""
 </COUNTRY RULES>
 <USER>
 Step-by-Step Extraction and Validation Process

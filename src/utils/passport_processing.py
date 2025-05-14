@@ -1,12 +1,13 @@
 import re
 from unidecode import unidecode
 import pandas as pd
+from src.utils.results_utils import mapper
 from src.utils.place_validator import PlaceValidator
 from src.utils.country_rules import *
 
 place_validator = PlaceValidator()
 
-def postprocess(json_data):
+def postprocess(json_data, country):
     formatted_data = dict(json_data)
 
     string_fields = [
@@ -36,11 +37,11 @@ def postprocess(json_data):
     mrz_line1 = formatted_data.get("mrzLine1", "").strip()
     mrz_line2 = formatted_data.get("mrzLine2", "").strip()
 
-    if len(mrz_line1) >= 44:    
+    if len(mrz_line1) >= 44:
         name_part = mrz_line1[5:]
         if "<<" in name_part:
             surname_end = name_part.find("<<")
-            if surname_end > 0:
+            if surname_end > 0 and mrz_line1[2:5] == mapper[country]:
                 surname = name_part[:surname_end].replace("<", " ").strip()
                 if surname:
                     clean_surname = re.sub(r'[^\w\s]', '', surname).upper().replace(" ", "")
@@ -50,9 +51,9 @@ def postprocess(json_data):
             
             names_start = name_part.find("<<") + 2
             if names_start < len(name_part):
-            
-                given_names = name_part[names_start:].replace("<", " ").strip()
-                if given_names:
+                names_end = name_part[names_start:].find("<<")
+                if names_end != -1:
+                    given_names = name_part[names_start:names_end].replace("<", " ").strip()
                     original_name = formatted_data.get("name", "")
                     if original_name:
                         clean_original = re.sub(r'[^\w\s]', '', original_name).upper().replace(" ", "")

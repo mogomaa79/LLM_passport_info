@@ -3,6 +3,8 @@ import os
 import pandas as pd
 import gspread
 import pickle
+import fuzzywuzzy
+import traceback
 from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
 
@@ -15,12 +17,16 @@ SCOPES = [
 pd.options.mode.chained_assignment = None
 
 mapper = {
-    "Philippines": "PHL",
-    "Ethiopia": "ETH",
-    "Kenya": "KEN",
-    "Nepal": "NPL",
-    "Sri Lanka": "LKA",
-    "India": "IND",
+    "Philippines": "PHL", "Ethiopia": "ETH", "Kenya": "KEN", "Nepal": "NPL",
+    "Sri Lanka": "LKA", "India": "IND", "Sierra Leone": "SLE", "Uganda": "UGA",
+    "Uzbekistan": "UZB", "Bangladesh": "BGD", "Cameroon": "CMR", "Pakistan": "PAK",
+    "Brazil": "BRA", "Myanmar": "MMN", "Russia": "RUS", "Spain": "ESP",
+    "Hong Kong": "HKG", "Zimbabwe": "ZWE", "Morocco": "MAR", "Indonesia": "IDN",
+    "Tanzania": "TZA", "Ivory Coast": "CIV", "Colombia": "COL", "Mexico": "MEX",
+    "Nigeria": "NGA", "Tunisia": "TUN", "Thailand": "THA", "Tajikistan": "TJK",
+    "Madagascar": "MDG", "Algeria": "DZA", "Georgia": "GEO", "Kyrgyzstan": "KGZ",
+    "Kazakhstan": "KAZ", "Azerbaijan": "AZE", "Turkmenistan": "TKM", "Mongolia": "MNG",
+    "Armenia": "ARM", "Austria": "AUT", "Belarus": "BLR", "Bulgaria": "BUL",
 }
 
 def edit_agent_value(value, field, country):
@@ -30,7 +36,8 @@ def edit_agent_value(value, field, country):
         return pd.to_datetime(value).strftime('%d/%m/%Y')
 
     elif str(field).strip().upper() == "NATIONALITY":
-        return mapper[country]
+        normalized_value = fuzzywuzzy.process.extractOne(value, mapper.keys())
+        return mapper.get(normalized_value[0], "XXX")
     
     elif country != "India" and (str(field).strip().upper() == "MOTHER NAME" or str(field).strip().upper() == "FATHER NAME"):
         return ""
@@ -46,7 +53,12 @@ def edit_agent_value(value, field, country):
 
     return value
 
-def upload_results(csv_file_path: str, spreadsheet_id: str, credentials_path: str, country: str, excel_path: str = "./static/OCR Extracted Data and User Modifications (feb 1- march 31) .xlsx"):
+def upload_results(csv_file_path: str, spreadsheet_id: str, 
+                   credentials_path: str, country: str, 
+                   excel_paths: list[str] = ["./static/OCR Extracted Data and User Modifications (feb 1- march 31) .xlsx", 
+                                             "./static/OCR Extracted Data and User Modifications- April 1 till 28.xlsx",
+                                             "./static/OCR Extracted Data and User Modifications (1-9-2024 till 14-5-2025).xlsx",
+                                             "./static/OCR Extracted Data and User Modifications - all 2024.xlsx"]):
     # Token file to store user credentials
     token_file = 'token.pickle'
 
@@ -74,7 +86,13 @@ def upload_results(csv_file_path: str, spreadsheet_id: str, credentials_path: st
     gc = gspread.authorize(creds)
 
     df = pd.read_csv(csv_file_path)
-    all_df = pd.read_excel(excel_path, sheet_name="Data")
+    all_df = pd.DataFrame()
+    for excel_path in excel_paths:
+        try:
+            excel_df = pd.read_excel(excel_path, sheet_name="Data")
+        except:
+            excel_df = pd.read_excel(excel_path, sheet_name="Sheet 1")
+        all_df = pd.concat([all_df, excel_df])
     all_df = all_df.ffill()
     merged_df = pd.merge(df, all_df, left_on="inputs.image_id", right_on="Maid’s ID", how="left")
 
@@ -133,6 +151,7 @@ def upload_results(csv_file_path: str, spreadsheet_id: str, credentials_path: st
     worksheet.freeze(rows=1)
 
 def save_results(results, results_path):
+
     df = pd.DataFrame(results.to_pandas())
     if 'inputs.multimodal_prompt' not in df.columns:
         df["inputs.image_id"] = df["inputs.inputs"].apply(lambda x: x["image_id"])
@@ -143,3 +162,35 @@ def save_results(results, results_path):
     df['output'] = df.apply(lambda row: json.dumps({key.split('.')[1]: row[key] for key in df.columns if key.startswith("output")}), axis=1)
     df.rename(columns={'input.image_id': 'image_id'}, inplace=True)
     df.to_csv(results_path, index=False) 
+
+def field_match(outputs: dict, reference_outputs: dict) -> float:
+    try:
+        if "reference_output" in reference_outputs:
+            reference_outputs = reference_outputs["reference_output"]
+        country = fuzzywuzzy.process.extractOne(reference_outputs["nationality"], mapper.keys())[0]
+        convert = lambda value: pd.to_datetime(value).strftime('%d/%m/%Y') if pd.to_datetime(value, errors='coerce') is not pd.NaT else value
+        correct = 0
+        correct += outputs["number"] == reference_outputs["passport id"]
+        correct += outputs["expiry date"] == convert(reference_outputs["passport expiry date"])
+        correct += outputs["issue date"] == convert(reference_outputs["passport issue date"])
+        correct += outputs["birth date"] == convert(reference_outputs["birthdate"])
+        correct += outputs["place of issue"] == reference_outputs["passport place(en)"]
+        correct += outputs["place of birth"] == reference_outputs["birth place"]
+        correct += outputs["country of issue"] == reference_outputs["country of issue"]
+        correct += outputs["country"] == mapper.get(country, "XXX")
+        correct += outputs["gender"] == reference_outputs["gender"][0]
+        correct += outputs["name"] == reference_outputs["first name"]
+        correct += outputs["father name"] == (reference_outputs["last name"] if country == "India" else "")
+        correct += outputs["mother name"] == (reference_outputs["mother name"].split()[0] if country == "India" else "")
+        correct += outputs["middle name"] == ("" if country != "Philippines" else reference_outputs["middle name"])
+        correct += outputs["surname"] == (reference_outputs["middle name"] if country == "India" else reference_outputs["last name"])
+
+        return correct / 14
+    
+    except Exception as e:
+        print(f"\nAn error occurred during field matching: {e}")
+        traceback.print_exc()
+        return 0
+
+def full_passport(outputs: dict, reference_outputs: dict) -> bool:
+    return field_match(outputs, reference_outputs) == 1      

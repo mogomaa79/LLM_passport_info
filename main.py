@@ -3,11 +3,10 @@ import random
 import os
 import time
 from dotenv import load_dotenv
-import pandas as pd
 from json.decoder import JSONDecodeError
 
 from src.passport_extraction import PassportExtraction
-from src.utils import save_results, upload_results, postprocess, mapper
+from src.utils import save_results, upload_results, postprocess, mapper, field_match, full_passport
 
 from langchain_google_genai import ChatGoogleGenerativeAI
 
@@ -19,11 +18,11 @@ from langchain_core.output_parsers import JsonOutputParser
 load_dotenv()
 
 LANGSMITH_API_KEY = os.getenv("LANGSMITH_API_KEY")
-GOOGLE_API_KEY = "AIzaSyBpQUxIZAnVIPviyMfbGIY5nlR_BnTCVJE"
+GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
 
-DATASET_NAME = "India"
-MODEL = "gemini-2.5-pro-exp-03-25"
-SPLITS = ["errors"]
+DATASET_NAME = "Ethiopia"
+MODEL = "gemini-2.5-pro-preview-05-06"
+SPLITS = ["test"]
 
 GOOGLE_SHEETS_CREDENTIALS_PATH = "credentials.json"
 SPREADSHEET_ID = "1ljIem8te0tTKrN8N9jOOnPIRh2zMvv2WB_3FBa4ycgA"
@@ -48,37 +47,6 @@ def map_input_to_messages_lambda(inputs: dict):
     ]
     
     return messages
-
-def field_match(outputs: dict, reference_outputs: dict) -> float:
-    try:
-        if "reference_output" in reference_outputs:
-            reference_outputs = reference_outputs["reference_output"]
-        convert = lambda value: pd.to_datetime(value).strftime('%d/%m/%Y') if pd.to_datetime(value, errors='coerce') is not pd.NaT else value
-        correct = 0
-        correct += outputs["number"] == reference_outputs["passport id"]
-        correct += outputs["expiry date"] == convert(reference_outputs["passport expiry date"])
-        correct += outputs["issue date"] == convert(reference_outputs["passport issue date"])
-        correct += outputs["birth date"] == convert(reference_outputs["birthdate"])
-        correct += outputs["place of issue"] == reference_outputs["passport place(en)"]
-        correct += outputs["place of birth"] == reference_outputs["birth place"]
-        correct += outputs["country of issue"] == reference_outputs["country of issue"]
-        correct += outputs["country"] == mapper[DATASET_NAME]
-        correct += outputs["gender"] == reference_outputs["gender"][0]
-        correct += outputs["name"] == reference_outputs["first name"]
-        correct += outputs["father name"] == (reference_outputs["last name"] if DATASET_NAME == "India" else "")
-        correct += outputs["mother name"] == (reference_outputs["mother name"].split()[0] if DATASET_NAME == "India" else "")
-        correct += outputs["middle name"] == ("" if DATASET_NAME != "Philippines" else reference_outputs["middle name"])
-        correct += outputs["surname"] == (reference_outputs["middle name"] if DATASET_NAME == "India" else reference_outputs["last name"])
-
-        return correct / 14
-    
-    except Exception as e:
-        print(f"\nAn error occurred during field matching: {e}")
-        traceback.print_exc()
-        return 0
-
-def full_passport(outputs: dict, reference_outputs: dict) -> bool:
-    return field_match(outputs, reference_outputs) == 1      
 
 def main():
     client = Client(api_key=LANGSMITH_API_KEY)
@@ -120,6 +88,7 @@ def main():
             evaluators=[field_match, full_passport],
             experiment_prefix=f"{MODEL} ",
             client=client,
+            max_concurrency=20,
         )
 
         print("\nRun on dataset completed successfully!")
