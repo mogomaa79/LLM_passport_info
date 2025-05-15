@@ -1455,7 +1455,7 @@ Validation Pipeline:
 Prefix & Length Check:
 
 
-Token must be at most 9 characters long.
+Token must be at MOST 9 characters long.
 
 
 Characters 1–2 must be one of AK, BK, or CK (uppercase).
@@ -1488,7 +1488,7 @@ If any candidate fails any of these checks, reject it.
 Source Selection:
 
 
-Use the validated MRZ candidate if it’s available and passes the validation checks and the OCR candidate is invalid. Otherwise, use OCR candidate.
+Use the validated MRZ candidate if it’s available and passes the validation checks and the OCR candidate is invalid. Otherwise, use an OCR candidate.
 
 
 If the MRZ candidate is not available, use the validated OCR candidate.
@@ -1497,87 +1497,6 @@ If the MRZ candidate is not available, use the validated OCR candidate.
 If neither is valid, output an empty string ("").
 
 
-Let’s walk through some of the examples you provided:
-Valid Case:
-
-
-AK13851569:
-
-
-Prefix: AK (valid)
-
-
-Length: 9 characters (valid)
-
-
-Digits: 13851569 (valid)
-
-
-Final Regex: Matches ^AK\d{7}$ (valid)
-
-
-Output: AK13851569 ✅
-
-
-
-Invalid Case (Too Long):
-
-
-BK12345678:
-
-
-Length: 10 characters (invalid)
-
-
-Trim to 9 characters: BK1234567 ✅
-
-
-Invalid Case (Incorrect Prefix):
-
-
-DK1234567:
-
-
-Prefix DK is not valid.
-
-
-Output: Rejected ❌
-
-
-Invalid Case (Letter Inside Digits):
-
-
-AK12345A7:
-
-
-Contains letter A inside digit block (invalid).
-
-
-Output: Rejected ❌
-
-
-Invalid Case (Space Inside Token):
-
-
-AK 1234567:
-
-
-Contains space inside token (invalid).
-
-
-Output: Rejected ❌
-
-
-Invalid Case (Hyphen Inside Token):
-
-
-AK1234-67:
-
-
-Contains hyphen inside token (invalid).
-
-
-Output: Rejected ❌
 country
 Always set to the ISO‑alpha‑3 code KEN.
 

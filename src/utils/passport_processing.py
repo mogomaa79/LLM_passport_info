@@ -9,6 +9,7 @@ place_validator = PlaceValidator()
 
 def postprocess(json_data, country):
     formatted_data = dict(json_data)
+    country = mapper[country]
 
     string_fields = [
         "number", "country", "name", "surname", "middle name", "gender",
@@ -34,14 +35,20 @@ def postprocess(json_data, country):
             total += value * weights[i % 3]
         return total % 10
     
-    mrz_line1 = formatted_data.get("mrzLine1", "").strip()
-    mrz_line2 = formatted_data.get("mrzLine2", "").strip()
+    mrz_line1 = formatted_data.get("mrzLine1", "")
+    mrz_line2 = formatted_data.get("mrzLine2", "")
+
+    if not isinstance(mrz_line1, str): mrz_line1 = ""
+    if not isinstance(mrz_line2, str): mrz_line2 = ""
+
+    mrz_line1 = mrz_line1.strip()
+    mrz_line2 = mrz_line2.strip()
 
     if len(mrz_line1) >= 44:
         name_part = mrz_line1[5:]
         if "<<" in name_part:
             surname_end = name_part.find("<<")
-            if surname_end > 0 and mrz_line1[2:5] == mapper[country]:
+            if surname_end > 0 and mrz_line1[2:5] == country:
                 surname = name_part[:surname_end].replace("<", " ").strip()
                 if surname:
                     clean_surname = re.sub(r'[^\w\s]', '', surname).upper().replace(" ", "")
@@ -66,7 +73,6 @@ def postprocess(json_data, country):
                     else:
                         formatted_data["name"] = given_names
     
-
     if len(mrz_line2) >= 10:
         doc_number = mrz_line2[:9].replace("<", "").strip()
         doc_number_check = mrz_line2[9]
@@ -116,11 +122,10 @@ def postprocess(json_data, country):
                 except:
                     pass
     
-    country = formatted_data.get("country", "")
-    issue_place = formatted_data.get("place of issue", "")
-    birth_place = formatted_data.get("place of birth", "")
+    issue_place = str(formatted_data.get("place of issue", ""))
+    birth_place = str(formatted_data.get("place of birth", ""))
 
-    if issue_place and country:
+    if issue_place and country != "PHL":
         issue_place_result = place_validator.validate_place(issue_place, country)
         if issue_place_result["is_valid"]:
             formatted_data["place of issue"] = issue_place_result["matched_name"]
@@ -176,11 +181,13 @@ def postprocess(json_data, country):
     for field in string_fields:
         if field in formatted_data:
             value = str(formatted_data[field]).upper()
+            if value == "NAN": value = ""
             value = re.sub(r'[^\w\s]', ' ', value)
             # replace all diacritics with their base letter
             value = unidecode(value)
-            value = re.sub(r'\s+', ' ', value).strip()
-            formatted_data[field] = value
+            value = re.sub(r'\s+', ' ', value)
+            if value:
+                formatted_data[field] = value.strip()
     
     # Format date fields
     for field in date_fields:
@@ -189,7 +196,8 @@ def postprocess(json_data, country):
             date_obj = pd.to_datetime(value, errors='coerce', dayfirst=True)
             formatted_data[field] = date_obj.strftime('%d/%m/%Y') if date_obj is not pd.NaT else value
     
-    if formatted_data.get("country") == "PHL":
-        formatted_data["number"] = philippines_rules(formatted_data)
+    if country== "PHL": formatted_data = philippines_rules(formatted_data)
+    if country == "NPL": formatted_data = nepal_rules(formatted_data)
+    if country == "LKA": formatted_data = sri_lanka_rules(formatted_data)
 
     return formatted_data

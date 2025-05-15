@@ -16,5 +16,15 @@ def philippines_rules(formatted_data):
             number = number[:8] + last
         else:
             return ""
-    
-    return number
+    formatted_data["number"] = number
+    return formatted_data
+
+def nepal_rules(formatted_data):
+    place_of_issue = formatted_data.get("place of issue")
+    if "MOFA" in place_of_issue:
+        formatted_data["place of issue"] = "MOFA"
+        formatted_data["country of issue"] = "NEPAL"
+    return formatted_data
+
+def sri_lanka_rules(formatted_data):
+    return formatted_data

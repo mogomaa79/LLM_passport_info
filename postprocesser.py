@@ -10,10 +10,6 @@ from src.utils.passport_processing import postprocess
 from src.utils.results_utils import upload_results
 
 def process_file(file_path):
-    """Apply postprocessing to all rows in the file."""
-    print(f"\nProcessing file: {os.path.basename(file_path)}")
-    
-    # Extract country/dataset name from filename
     project_name = os.path.basename(file_path).replace('_results.csv', '')
     country = project_name.split(' - ')[0].strip()
     print(f"Detected country/dataset: {country}")
@@ -90,11 +86,11 @@ def upload_to_sheets(output_file, country):
         traceback.print_exc()
 
 def main():
-    file_path = "results/India - gemini-2.5-pro-preview-05-06 - 848_results.csv"
+    file_path = "results/India - gemini-2.5-pro-preview-05-06 - 683_results.csv"
     
     output_file, country = process_file(file_path)
     
-    upload_to_sheets(output_file, country)
+    # upload_to_sheets(output_file, country)
 
     print("\nUpload completed.")
 

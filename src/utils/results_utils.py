@@ -55,8 +55,8 @@ def edit_agent_value(value, field, country):
 
 def upload_results(csv_file_path: str, spreadsheet_id: str, 
                    credentials_path: str, country: str, 
-                   excel_paths: list[str] = ["./static/OCR Extracted Data and User Modifications (feb 1- march 31) .xlsx", 
-                                             "./static/OCR Extracted Data and User Modifications- April 1 till 28.xlsx",
+                   excel_paths: list[str] = [# "./static/OCR Extracted Data and User Modifications (feb 1- march 31) .xlsx", 
+                                             # "./static/OCR Extracted Data and User Modifications- April 1 till 28.xlsx",
                                              "./static/OCR Extracted Data and User Modifications (1-9-2024 till 14-5-2025).xlsx",
                                              "./static/OCR Extracted Data and User Modifications - all 2024.xlsx"]):
     # Token file to store user credentials
@@ -94,6 +94,7 @@ def upload_results(csv_file_path: str, spreadsheet_id: str,
             excel_df = pd.read_excel(excel_path, sheet_name="Sheet 1")
         all_df = pd.concat([all_df, excel_df])
     all_df = all_df.ffill()
+    all_df.drop_duplicates(subset=["Maid’s ID", "Modified Field"], inplace=True)
     merged_df = pd.merge(df, all_df, left_on="inputs.image_id", right_on="Maid’s ID", how="left")
 
     google_sheet_columns = {
@@ -124,6 +125,8 @@ def upload_results(csv_file_path: str, spreadsheet_id: str,
             else:
                 row = row.iloc[0]
                 gemini_value = row.get(mapped_field)
+                if not gemini_value and field == "Passport ID":
+                    gemini_value = row.get("outputs.original number")
             if pd.isna(gemini_value):
                 return ""
             else:
@@ -151,7 +154,6 @@ def upload_results(csv_file_path: str, spreadsheet_id: str,
     worksheet.freeze(rows=1)
 
 def save_results(results, results_path):
-
     df = pd.DataFrame(results.to_pandas())
     if 'inputs.multimodal_prompt' not in df.columns:
         df["inputs.image_id"] = df["inputs.inputs"].apply(lambda x: x["image_id"])
