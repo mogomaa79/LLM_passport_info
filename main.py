@@ -6,7 +6,7 @@ from dotenv import load_dotenv
 from json.decoder import JSONDecodeError
 
 from src.passport_extraction import PassportExtraction
-from src.utils import save_results, upload_results, postprocess, mapper, field_match, full_passport
+from src.utils import save_results, postprocess, field_match, full_passport, ResultsAgent
 
 from langchain_google_genai import ChatGoogleGenerativeAI
 
@@ -20,7 +20,7 @@ load_dotenv()
 LANGSMITH_API_KEY = os.getenv("LANGSMITH_API_KEY")
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
 
-DATASET_NAME = "India"
+DATASET_NAME = "Sri Lanka"
 MODEL = "gemini-2.5-pro-preview-05-06"
 SPLITS = ["test"]
 
@@ -54,10 +54,10 @@ def main():
     llm = ChatGoogleGenerativeAI(
         model=MODEL,
         google_api_key=GOOGLE_API_KEY,
-        temperature=0.0,
+        temperature=1.0,
         max_tokens=30000,
         max_output_tokens=1024,
-        thinking_budget=2048 if "2.5" in MODEL else None,
+        thinking_budget=4096 if "2.5" in MODEL else None,
     )
 
     runnable = RunnableLambda(map_input_to_messages_lambda)
@@ -94,12 +94,12 @@ def main():
         print("\nRun on dataset completed successfully!")
         results_path = f"results/{PROJECT_NAME}_results.csv"
         save_results(results, results_path)
-        upload_results(
-            results_path,
+        results_agent = ResultsAgent(
             spreadsheet_id=SPREADSHEET_ID,
             credentials_path=GOOGLE_SHEETS_CREDENTIALS_PATH,
             country=DATASET_NAME,
         )
+        results_agent.upload_results(results_path)
 
     except Exception as e:
         print(f"\nAn error occurred during the run on dataset")

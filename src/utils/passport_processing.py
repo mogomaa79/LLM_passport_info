@@ -44,12 +44,13 @@ def postprocess(json_data, country):
     mrz_line1 = mrz_line1.strip()
     mrz_line2 = mrz_line2.strip()
 
-    if len(mrz_line1) >= 44:
+    if len(mrz_line1) >= 44 and country != "LKA":
         name_part = mrz_line1[5:]
         if "<<" in name_part:
             surname_end = name_part.find("<<")
             if surname_end > 0 and mrz_line1[2:5] == country:
                 surname = name_part[:surname_end].replace("<", " ").strip()
+                formatted_data["mrz_surname"] = surname
                 if surname:
                     clean_surname = re.sub(r'[^\w\s]', '', surname).upper().replace(" ", "")
                     clean_original = re.sub(r'[^\w\s]', '', formatted_data.get("surname", "")).upper().replace(" ", "")

@@ -46,7 +46,128 @@ FIELD EXTRACTION & NORMALIZATION
 </RULES>
 <FIELDS>
 number
-passport number from OCR and mrzLine2 positions 1‑9 (only alphanumeric characters no ‘<’ at all); must match ^[A‑Z0-9]{{6,9}}$.
+Objective
+Extract and validate the passport number using both OCR and mrzLine2, in compliance with the ICAO 9303 specification.
+📌 Step-by-Step Extraction & Validation Logic
+Step 1 – Locate the MRZ Line 2
+Use the second line of the Machine Readable Zone (mrzLine2) of the passport.
+Step 2 – Extract Passport Number
+The passport number is in positions 1 to 9 (inclusive).
+
+
+Extract only alphanumeric characters from this field.
+
+
+Ignore or remove any < characters that may appear as padding.
+
+
+The resulting value must match the regex:
+ ^[A-Z0-9]{6,9}$
+
+
+Step 3 – Checksum Validation
+The 10th character in mrzLine2 is a check digit for the passport number.
+
+
+Use the standard ICAO 9303 checksum algorithm to validate:
+
+
+Checksum Algorithm
+Assign values:
+
+
+A–Z → 10–35
+
+
+0–9 → 0–9
+
+
+< → 0 (shouldn't occur here, but covered by spec)
+
+
+Multiply each character in the number (positions 1–9) by the weighting pattern: [7, 3, 1], repeating as needed.
+
+
+Sum the results and compute:
+ checksum = total sum mod 10
+
+
+Compare the calculated checksum against the character at position 10 of mrzLine2.
+
+
+⚠️ Cross-Check With OCR
+Extract the passport number from the OCR’d visual zone (top-left on data page).
+
+
+Remove any non-alphanumeric characters (especially <).
+
+
+Normalize to uppercase.
+
+
+Confirm that the OCR number matches the MRZ-extracted number after sanitization and validation.
+
+
+✅ Validation Criteria
+Final passport number:
+
+
+Length: 6 to 9 characters
+
+
+Format: Alphanumeric only
+
+
+MRZ Checksum: Valid
+
+
+OCR Match: Exact after cleaning
+
+
+🧪 Examples
+✅ Valid Case
+mrzLine2: N12345678<6LKA8501015M2501012<<<<<<<<<<<<<<06
+Passport number: N12345678
+
+
+Check digit (position 10): 6
+
+
+Calculated checksum: 6 ✅
+
+
+OCR number (e.g., N12345678) → match ✅
+
+
+Result: number = N12345678
+
+
+❌ Invalid Case (checksum mismatch)
+mrzLine2: A98765432<3USA9001015F3001012<<<<<<<<<<<<<<01
+Passport number: A98765432
+
+
+Check digit: 3
+
+
+Calculated checksum: 5 ❌
+
+
+Reject this MRZ data
+🛡️ Compliance and Integrity Notes
+Do not infer or hallucinate missing digits or correct what "seems likely."
+
+
+Do not use the < character in the final extracted number.
+
+
+Only accept a number if both:
+
+
+Regex is valid
+
+
+Checksum is valid
 country
 ISO 3166‑1 alpha‑3 code from OCR or MRZ.
 
@@ -3251,120 +3372,183 @@ CASE 12: Sri Lanka – LKA – Sri Lankan
 Scope
 Activate this section only when mrzLine1 characters 3‑5 equal LKA or the previously extracted country field already equals LKA. 
 surname
-Locate mrzLine1.
-Read every character starting at position 6 (the first character after the country code) up to—but not including—the first double‑arrow separator <<.
+🎯 Objective
+Extract the surname from mrzLine1 with complete accuracy, without hallucinating extra characters, even if the MRZ is truncated (especially for Sri Lankan passports with long names).
+🛠 Step-by-Step Instructions
+Locate mrzLine1 — the first line of the MRZ.
 
 
-Within that substring, replace each single arrow < with a space, then collapse multiple spaces to one.
+Skip the first 5 characters, which include:
 
 
-Preserve the resulting string verbatim as surname.
+Position 1: Document type (typically P)
 
 
-Do not translate, reorder, or remove any words.
+Positions 2–4: Issuing country code (e.g., LKA)
 
 
-Example 1
-Substring before << = PORAMA<MANNAGE
+Position 5: Padding or surname start
 
 
-Convert < to space → PORAMA MANNAGE
+Start from position 6 and read until just before the first << (double angle bracket), which denotes the end of the surname block.
 
 
-surname = PORAMA MANNAGE
-Example 2
-Substring before << = WIKRAMA<HENALAGE
+Within that substring:
 
 
-Convert < to space → WIKRAMA HENALAGE
+Replace every single < with a space
 
 
-surname = WIKRAMA HENALAGE
-Example 3
-Substring before << = MADIGAPOLA<LEKAMGE
+Collapse multiple spaces to a single space
 
 
-Convert < to space → MADIGAPOLA LEKAMGE
+Trim leading/trailing spaces
 
 
-surname = MADIGAPOLA LEKAMGE
-Compliance Reminder
-Only transform single < characters into spaces; all other formatting stays intact.
+Do NOT include:
 
 
-Upper‑casing or global space‑normalisation (if any) should follow the master prompt’s convention.
+Document type (e.g., P)
 
 
-Purge temporary parsing strings and logs after processing to satisfy GDPR.
+Country codes (e.g., LKA, IND, GBR)
+
+
+Given names (they appear after the <<)
+
+
+Guessed or interpolated names from other fields
+
+
+If the OCR-extracted surname is longer and more complete, and the MRZ shows signs of truncation (common for Sri Lanka and India):
+
+
+Prefer the OCR surname only if it begins with the MRZ surname and extends it logically (e.g., adding missing parts)
+
+
+Ensure the OCR surname is not contradictory, just more complete
+
+
+Final rule: If MRZ surname is valid, always include it. If OCR extends it in a meaningful way (not contradicts), use OCR.
+
+
+✅ Examples
+✅ Regular MRZ:
+MRZ Line 1: P<LKAWIKRAMA<HENALAGE<<SUMITH<CHANDANA<<<<<<<<<<
+
+
+Extracted substring: WIKRAMA<HENALAGE
+
+
+Converted: WIKRAMA HENALAGE
+
+
+✅ Final surname: WIKRAMA HENALAGE
+
+
+⚠️ Truncated MRZ (LKA Case):
+MRZ Line 1: PBLKAVARNAKULASURIYA<MUDIYANSELAGE<A<G<<N<P<W
+
+
+Extracted substring: VARNAKULASURIYA<MUDIYANSELAGE<A<G → VARNAKULASURIYA MUDIYANSELAGE A G
+
+
+OCR Surname: WARNAKULASURIYA MUDIYANSELAGE ALUTH GEDARA
+
+
+➡️ Since OCR extends MRZ and MRZ appears truncated, use:
+✅ Final surname: WARNAKULASURIYA MUDIYANSELAGE ALUTH GEDARA
 name
-Objective:
-Extract the complete given name(s) of the passport holder without cutting or missing any part.
-🛠 Step-by-Step Instructions:
-Extract Two Versions of the Given Name:
+🎯 Objective
+Extract the full given name(s) from the MRZ and OCR without truncation, splitting, or assumptions.
+🛠 Step-by-Step Instructions
+Extract two versions of the given name:
+
+ mrzGivenName:
 
 
-mrzGivenName:
+Start from the first << in mrzLine1
 
 
-From MRZ Line 1, extract everything after the first << until the end of the line.
+Extract everything after it
+
+
+Replace every < with space
+
+
+Collapse multiple spaces
+
+
+Trim leading/trailing spaces
 
 
 ocrGivenName:
-From Page 1, extract the value exactly next to the label “Given Name(s)” (case-insensitive exact match).
 
 
-It will always be located below the surname in terms of Y-coordinates in the image.
+From the OCR visual zone
 
 
-Clean Both Extracted Values:
+Extract the text adjacent to the label "Given Name(s)"
 
 
-Replace every < character with a space.
+It will usually appear below the surname on the page
 
 
-Collapse multiple spaces into a single space.
+Apply the same cleaning steps: replace <, collapse spaces, trim
 
 
-Trim leading and trailing spaces.
+Selection Logic:
 
 
-Selection Rule:
+If mrzGivenName is valid:
 
 
-If mrzGivenName is available (non-empty and readable), check the OCR name against MRZ. Sometimes the OCR is longer than MRZ, because indian names are larger than MRZ limit, so keep the OCR extracted after checking against the MRZ.
+Check if ocrGivenName is longer and starts with MRZ version
 
 
-If mrzGivenName is missing, unreadable, or invalid, use ocrGivenName.
+If yes, prefer ocrGivenName
 
 
-Important: Always use the full extracted string as-is after cleaning — no splitting, no guessing, no truncation.
+Otherwise, use mrzGivenName
 
 
-❌ STRICT RULES: DO NOT:
-Do not split the name into parts (keep the full name together as one field).
+If MRZ is unreadable or empty, fall back to ocrGivenName
 
 
-Do not pick only a part (e.g., avoid picking only "Kaur" if the full name is "Husanpreet Kaur").
+Strict Final Output Rule:
 
 
-Do not remove parts based on assumptions like family name, middle name, initials, etc.
+Keep the entire extracted string as-is
 
 
-Do not guess missing parts or correct perceived errors manually.
+Do not split, shorten, or reorder
 
 
-Do not pull from other fields like “Surname”, “Nationality”, etc.
-Examples:
-Given Names: DEHEMI SANJANA DASANAYAKA
+Do not discard parts like "Kaur", "Singh", etc.
 
 
-First Name → DEHEMI SANJANA DASANAYAKA (Keep all given names) ✅
+✅ Examples
+✅ Short Given Name
+MRZ: <<NISHAN<CHANDANA
 
 
-Given Names: NUSHALI SUJANTHA FONSEKA
+Extracted: NISHAN CHANDANA
 
 
-First Name → NUSHALI SUJANTHA FONSEKA (Keep all given names) ✅
+OCR: NISHAN CHANDANA
+
+
+✅ Final name: NISHAN CHANDANA
+
+
+⚠️ Truncated Given Name
+MRZ: <<N<P<W → N P W
+
+
+OCR: NADEEKA PUSHPALATHA WARNAKULASURIYA
+
+
+✅ Final name: NADEEKA PUSHPALATHA WARNAKULASURIYA (OCR used for completeness)
 middle name
 Always keep middle name as empty string (“”)
 place of issue 
@@ -3410,6 +3594,99 @@ Country of Issue → "SRI LANKA" ✅
 
 Place of Issue (OCR): COLOMBO
 Country of Issue → "SRI LANKA" ✅
+mrzline1
+🎯 Objective
+Extract and validate the passport number from MRZ Line 1, positions 1–9 (inclusive), according to ICAO 9303 standards. Passport numbers may include prefixes like PA, PB, etc., depending on country and passport type.
+🛠 Instructions
+Locate mrzLine1 — the first line of the MRZ.
+
+
+Extract passport number from positions 1 to 9 (1-based index), which may include:
+
+
+Alphanumeric characters (A-Z, 0-9)
+
+
+Possible prefixes such as:
+
+
+PA (Passport type A)
+
+
+PB (Passport type B)
+
+
+Other valid letter/number combinations depending on issuing country
+
+
+Remove any < characters — these are padding and not part of the passport number.
+
+
+The passport number must match the regex:
+ ^[A-Z0-9]{6,9}$
+ (Only 6 to 9 alphanumeric characters, no spaces or special chars.)
+
+
+Checksum validation:
+
+
+The 10th character in mrzLine2 is the check digit for the passport number.
+
+
+Calculate the checksum using the ICAO 9303 algorithm:
+
+
+Convert letters A=10, B=11, ..., Z=35; digits 0-9 as their numeric value; < = 0
+
+
+Multiply each character value by weights [7, 3, 1] in repeating cycles
+
+
+Sum all, mod 10 equals the check digit
+
+
+Reject passport numbers with invalid checksum.
+
+
+✅ Examples
+Example 1: Standard number starting with N
+mrzLine2:
+N114376919LKA8202132F3406131198254401557<<18
+Positions 1-9:
+N11437691
+Check digit (pos 10): 9
+Validate checksum → matches 9 → VALID
+
+Extracted passport number: N11437691
+Example 2: Number starting with PA
+mrzLine2:
+PA12345678<7USA9001015F3001012<<<<<<<<<<<<<<01
+Positions 1-9:
+PA1234567
+Check digit (pos 10): 8
+Calculate checksum → should be 8 to be valid
+If valid, passport number = `PA1234567`
+
+Example 3: Number starting with PB
+mrzLine2:
+PB98765432<5GBR7505051M2205052<<<<<<<<<<<<<<06
+Positions 1-9:
+PB9876543
+Check digit (pos 10): 2
+Validate checksum; if matches, passport number = `PB9876543`
+
+⚠️ Important Notes
+Passport numbers can include letter prefixes such as PA, PB, PC, depending on passport series and country.
+
+
+Always ignore padding < characters in positions 1–9.
+
+
+Always perform checksum validation to ensure the number is not corrupted or misread.
+
+
+If checksum validation fails, reject the MRZ passport number and consider fallback mechanisms if available (e.g., OCR).
+
 CASE 13: Brazil – BRA - Brazilian
 Scope
  Activate this section only when mrzLine1 characters 3‑5 equal BRA or the extracted country field already equals BRA. These rules override the master prompt only for the fields place of issue, country of issue, and place of birth.  All other fields follow the master rules.
