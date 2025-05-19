@@ -126,14 +126,15 @@ def postprocess(json_data, country):
     issue_place = str(formatted_data.get("place of issue", ""))
     birth_place = str(formatted_data.get("place of birth", ""))
 
-    if issue_place and country != "PHL":
-        issue_place_result = place_validator.validate_place(issue_place, country)
+    if issue_place and country:
+        issue_place_result = place_validator.validate_issue_place(issue_place, country)
         if issue_place_result["is_valid"]:
             formatted_data["place of issue"] = issue_place_result["matched_name"]
     
     if birth_place and country:
-        birth_place_result = place_validator.validate_place(birth_place, country)
+        birth_place_result = place_validator.validate_birth_place(birth_place, country)
         if birth_place_result["is_valid"]:
+            print(birth_place_result)
             formatted_data["place of birth"] = birth_place_result["matched_name"]
     
     birth_date_str = formatted_data.get("birth date")

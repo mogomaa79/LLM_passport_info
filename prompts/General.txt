@@ -1588,23 +1588,6 @@ Digit Check (positions 3–9):
 Characters 3–9 must only be digits (0–9), no letters, spaces, or symbols allowed.
 
 
-Final Regex Confirmation:
-
-
-Ensure the token matches one of the following regular expressions:
-
-
-^AK\d{7}$
-
-
-^BK\d{7}$
-
-
-^CK\d{7}$
-
-
-If any candidate fails any of these checks, reject it.
-
 
 Source Selection:
 
@@ -3373,91 +3356,51 @@ Scope
 Activate this section only when mrzLine1 characters 3‑5 equal LKA or the previously extracted country field already equals LKA. 
 surname
 🎯 Objective
-Extract the surname from mrzLine1 with complete accuracy, without hallucinating extra characters, even if the MRZ is truncated (especially for Sri Lankan passports with long names).
-🛠 Step-by-Step Instructions
-Locate mrzLine1 — the first line of the MRZ.
+Extract the surname (family name or last name) from OCR text only — completely ignore MRZ, since MRZ may truncate long Sri Lankan or South Asian surnames.
+🛠 Instructions for OCR-Based Surname Extraction
+Locate the label: "Surname" (case-insensitive match).
 
 
-Skip the first 5 characters, which include:
+Extract the value adjacent to the label, typically found:
 
 
-Position 1: Document type (typically P)
+On the top-left section of the passport data page
 
 
-Positions 2–4: Issuing country code (e.g., LKA)
+Usually above the "Given Name(s)" field
 
 
-Position 5: Padding or surname start
+Clean the value:
 
 
-Start from position 6 and read until just before the first << (double angle bracket), which denotes the end of the surname block.
+Normalize spacing: Collapse multiple spaces into one
 
 
-Within that substring:
+Remove leading/trailing spaces
 
 
-Replace every single < with a space
+Convert to UPPERCASE
 
 
-Collapse multiple spaces to a single space
+Do not:
 
 
-Trim leading/trailing spaces
+Use MRZ for surname at all
 
 
-Do NOT include:
+Split, reorder, shorten, or "fix" the name
 
 
-Document type (e.g., P)
+Remove cultural components (e.g., "MUDIYANSELAGE", "ALUTH GEDARA", etc.)
 
 
-Country codes (e.g., LKA, IND, GBR)
+✅ Example:
+OCR Line: Surname: WARNAKULASURIYA MUDIYANSELAGE ALUTH GEDARA
 
 
-Given names (they appear after the <<)
-
-
-Guessed or interpolated names from other fields
-
-
-If the OCR-extracted surname is longer and more complete, and the MRZ shows signs of truncation (common for Sri Lanka and India):
-
-
-Prefer the OCR surname only if it begins with the MRZ surname and extends it logically (e.g., adding missing parts)
-
-
-Ensure the OCR surname is not contradictory, just more complete
-
-
-Final rule: If MRZ surname is valid, always include it. If OCR extends it in a meaningful way (not contradicts), use OCR.
-
-
-✅ Examples
-✅ Regular MRZ:
-MRZ Line 1: P<LKAWIKRAMA<HENALAGE<<SUMITH<CHANDANA<<<<<<<<<<
-
-
-Extracted substring: WIKRAMA<HENALAGE
-
-
-Converted: WIKRAMA HENALAGE
-
-
-✅ Final surname: WIKRAMA HENALAGE
-
-
-⚠️ Truncated MRZ (LKA Case):
-MRZ Line 1: PBLKAVARNAKULASURIYA<MUDIYANSELAGE<A<G<<N<P<W
-
-
-Extracted substring: VARNAKULASURIYA<MUDIYANSELAGE<A<G → VARNAKULASURIYA MUDIYANSELAGE A G
-
-
-OCR Surname: WARNAKULASURIYA MUDIYANSELAGE ALUTH GEDARA
-
-
-➡️ Since OCR extends MRZ and MRZ appears truncated, use:
 ✅ Final surname: WARNAKULASURIYA MUDIYANSELAGE ALUTH GEDARA
+
+
 name
 🎯 Objective
 Extract the full given name(s) from the MRZ and OCR without truncation, splitting, or assumptions.

@@ -20,7 +20,7 @@ load_dotenv()
 LANGSMITH_API_KEY = os.getenv("LANGSMITH_API_KEY")
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
 
-DATASET_NAME = "Sri Lanka"
+DATASET_NAME = "Kenya"
 MODEL = "gemini-2.5-pro-preview-05-06"
 SPLITS = ["test"]
 
