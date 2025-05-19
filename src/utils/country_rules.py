@@ -42,6 +42,7 @@ def nepal_rules(formatted_data):
     return formatted_data
 
 def sri_lanka_rules(formatted_data):
+    formatted_data["surname"] = formatted_data.get("surname", "").replace("<", " ")
     place_of_issue = formatted_data.get("place of issue", "")
     if "COLOMBO" in place_of_issue:
         formatted_data["place of issue"] = "COLOMBO"
