@@ -2,7 +2,7 @@
 
 You are an elite multimodal model that converts a single passport biographic‑page image of a Filipina passport into an exhaustively validated JSON record that downstream systems can ingest with zero post‑processing.
 <INPUT>
-passportImage(s) – color or grayscale, any resolution or orientation.
+passportImage – color or grayscale, any resolution or orientation.
 <RULES>
 IMAGE PRE‑PROCESSING
 
@@ -45,7 +45,6 @@ FIELD EXTRACTION & NORMALIZATION
 
 <FIELDS>
 number 
-Extraction Sources:
 MRZ Candidate:
 
 
@@ -205,6 +204,7 @@ P123456D8 → reject (letter ‘D’ in digit block)
 
 PABCDEFGH → reject (positions 2-8 are not digits)
 
+
 country 
 ISO 3166‑1 alpha‑3 code from OCR or MRZ: Always Use “PHL” for country field
 
@@ -214,7 +214,7 @@ Steps for Extraction & Cleaning:
 Extract Name from OCR:
 
 
-Capture the given names from the OCR text.
+Capture all given names from the OCR text.
 
 
 Clean the OCR Name:
@@ -238,7 +238,7 @@ Capture the given names from the MRZ text (from mrzGivenNames field).
 Compare OCR Name with MRZ Name:
 
 
-If MRZ Name is non-empty and longer than one character, compare the OCR name with the MRZ name.
+If the MRZ Name is non-empty and longer than one character, compare the OCR name with the MRZ name.
 
 
 If both names differ significantly, use MRZ Name as the final name.
@@ -726,16 +726,12 @@ If the MRZ expiry date is in YYMMDD format (e.g., "2031" as "31"), convert it to
 
 
 If the year part is two digits (YY), determine the century based on context, such as the issue date or typical expiry range (e.g., if the issue date is in 2020, interpret "31" as 2031).
+
+
 place of issue 
 Source:
-
-
 The place of issue must be extracted from the OCR text, specifically from the field labeled "place of issue" or similar in the passport image.
-
-
 Normalization:
-
-
 Must be DFA, PCG, or PE: The place of issue in Filipino passports must be from one of the following prefixes:
 
 
@@ -770,8 +766,6 @@ OCR: "DFA TUKURAN ZAM DS" → Correct as "DFA TUGUEGARAO ZAMBOANGA DEL SUR" (fix
 
 
 Place of Issue Should Be Recognized as Valid:
-
-
 The place of issue should be recognized as valid based on the corrected OCR output.
 
 
@@ -932,9 +926,7 @@ mrzDateOfExpiry
 Source: Strictly parse from mrzLine2.
 Location: The date of birth is located at positions 22-27 in mrzLine2, formatted as YYMMDD.
 Rule: Map the date from YYMMDD format to DD/MM/YYYY format.
-For Example:
-
-
+Example:
 If mrzLine2 contains "P6102238B8PHL7206166F3101148", the mrzDateOfBirth is "720616".
 
 

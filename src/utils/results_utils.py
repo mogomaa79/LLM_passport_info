@@ -32,8 +32,8 @@ mapper = {
 class ResultsAgent:
     def __init__(self, spreadsheet_id: str = "1ljIem8te0tTKrN8N9jOOnPIRh2zMvv2WB_3FBa4ycgA", country: str = "XXX", 
                  credentials_path: str = "credentials.json", excel_paths: list[str] = 
-                 [# "./static/OCR Extracted Data and User Modifications (feb 1- march 31) .xlsx", 
-                  # "./static/OCR Extracted Data and User Modifications- April 1 till 28.xlsx",
+                 ["./static/OCR Extracted Data and User Modifications (feb 1- march 31) .xlsx", 
+                  "./static/OCR Extracted Data and User Modifications- April 1 till 28.xlsx",
                   "./static/OCR Extracted Data and User Modifications (1-9-2024 till 14-5-2025).xlsx",
                   "./static/OCR Extracted Data and User Modifications - all 2024.xlsx"]):
         
@@ -144,7 +144,8 @@ class ResultsAgent:
         filtered_df["Similarity"] = filtered_df.apply(lambda row: row['Gemini Value'] == row['Edited Agent Value'], axis=1)
         print(filtered_df[filtered_df["Similarity"] == False].shape[0])
         filtered_df = filtered_df[['Maid’s ID', 'Modified Field', 'Edited Agent Value', 'Gemini Value', 'Similarity', 'Agent Value', 'OCR Value']]
-
+        filtered_df.dropna(subset=['Maid’s ID'], inplace=True)
+        print(filtered_df["Maid’s ID"].unique())
         filtered_df['Maid’s ID'] = filtered_df['Maid’s ID'].astype(int)
 
         headers = filtered_df.columns.tolist()
