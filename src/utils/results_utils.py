@@ -32,8 +32,8 @@ mapper = {
 class ResultsAgent:
     def __init__(self, spreadsheet_id: str = "1ljIem8te0tTKrN8N9jOOnPIRh2zMvv2WB_3FBa4ycgA", country: str = "XXX", 
                  credentials_path: str = "credentials.json", excel_paths: list[str] = 
-                 [# "./static/OCR Extracted Data and User Modifications (feb 1- march 31) .xlsx", 
-                  # "./static/OCR Extracted Data and User Modifications- April 1 till 28.xlsx",
+                 ["./static/OCR Extracted Data and User Modifications (feb 1- march 31) .xlsx", 
+                  "./static/OCR Extracted Data and User Modifications- April 1 till 28.xlsx",
                   "./static/OCR Extracted Data and User Modifications (1-9-2024 till 14-5-2025).xlsx",
                   "./static/OCR Extracted Data and User Modifications - all 2024.xlsx"]):
         

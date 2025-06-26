@@ -5,11 +5,11 @@ from src.utils.results_utils import mapper
 from src.utils.place_validator import PlaceValidator
 from src.utils.country_rules import *
 
-place_validator = PlaceValidator()
+place_validator = PlaceValidator(matching_threshold=93)
 
-def postprocess(json_data, country):
+def postprocess(json_data):
     formatted_data = dict(json_data)
-    country = mapper[country]
+    country = formatted_data["country"]
 
     string_fields = [
         "number", "country", "name", "surname", "middle name", "gender",
