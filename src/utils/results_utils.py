@@ -145,6 +145,7 @@ class ResultsAgent:
         print(filtered_df[filtered_df["Similarity"] == False].shape[0])
         filtered_df = filtered_df[['Maid’s ID', 'Modified Field', 'Edited Agent Value', 'Gemini Value', 'Similarity', 'Agent Value', 'OCR Value']]
 
+        filtered_df.dropna(subset=['Maid’s ID'], inplace=True)
         filtered_df['Maid’s ID'] = filtered_df['Maid’s ID'].astype(int)
 
         headers = filtered_df.columns.tolist()
