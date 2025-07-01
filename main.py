@@ -22,7 +22,7 @@ GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
 
 DATASET_NAME = "Philippines"
 MODEL = "gemini-2.5-pro"
-SPLITS = ["no"]
+SPLITS = ["test"]
 
 GOOGLE_SHEETS_CREDENTIALS_PATH = "credentials.json"
 SPREADSHEET_ID = "1ljIem8te0tTKrN8N9jOOnPIRh2zMvv2WB_3FBa4ycgA"
@@ -66,7 +66,7 @@ def main():
     postprocessor = RunnableLambda(postprocess)
 
     def llm_chain_factory():
-        return runnable | llm_retry | json_parser
+        return runnable | llm_retry | json_parser | postprocessor
 
     print(f"\nStarting run on dataset '{DATASET_NAME}' with project name '{PROJECT_NAME}'...")
 
