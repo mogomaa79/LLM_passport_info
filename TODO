@@ -1,0 +1,12 @@
+Watch the Prompt Engineering Workshop --> Done
+Rewrite all prompts for all countries
+Retest on new prompts
+Check on Gemini Confidence Level
+
+passport no. compare both according to rules, regex, format, diacritcal
+gemini --> EXTRACT EVERYTHING
+
+if we cannot use postprocessing, we should check confidence. 
+if good, then use it. Else, use another LLMs
+
+Place of Issue, Place of Birth, Father Name, Mother Name, Date of Issue, TOO LONG FIRST OR LAST NAMES
