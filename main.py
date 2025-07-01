@@ -29,12 +29,12 @@ SPREADSHEET_ID = "1ljIem8te0tTKrN8N9jOOnPIRh2zMvv2WB_3FBa4ycgA"
 PROJECT_NAME = f"{DATASET_NAME} - {MODEL} - {random.randint(0, 1000)}"
 
 def get_prompt():
-    """Load the prompt for a specific country"""
+    """Load the Simple prompt for universal extraction"""
     try:
-        with open(f"prompts/General.txt", "r", encoding="utf-8") as f:
+        with open(f"prompts/Simple.txt", "r", encoding="utf-8") as f:
             return f.read()
     except Exception as e:
-        raise ValueError(f"Error reading prompt file for {DATASET_NAME}: {e}")
+        raise ValueError(f"Error reading Simple prompt file: {e}")
 
 def map_input_to_messages_lambda(inputs: dict):
     """Convert inputs to LangChain messages format"""
@@ -97,7 +97,7 @@ def main():
         results_agent = ResultsAgent(
             spreadsheet_id=SPREADSHEET_ID,
             credentials_path=GOOGLE_SHEETS_CREDENTIALS_PATH,
-            country="XXX",
+            country=DATASET_NAME,
         )
         results_agent.upload_results(results_path)
 

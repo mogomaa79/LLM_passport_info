@@ -17,8 +17,7 @@ def postprocess(json_data):
     ]
     
     date_fields = [
-        "original birth date", "birth date", "issue date", 
-        "original expiry date", "expiry date", "mrzDateOfBirth", "mrzDateOfExpiry"
+        "birth date", "issue date", "expiry date",
     ]
     
     # Helper function to validate MRZ checksums
@@ -136,48 +135,6 @@ def postprocess(json_data):
     #     if birth_place_result["is_valid"]:
     #         formatted_data["place of birth"] = birth_place_result["matched_name"]
     
-    birth_date_str = formatted_data.get("birth date")
-    expiry_date_str = formatted_data.get("expiry date")
-    issue_date_str = formatted_data.get("issue date")
-
-    if not birth_date_str:
-        formatted_data["birth date"] = formatted_data.get("original birth date")
-        birth_date_str = formatted_data.get("birth date")
-    
-    if not expiry_date_str:
-        formatted_data["expiry date"] = formatted_data.get("original expiry date")
-        expiry_date_str = formatted_data.get("expiry date")
-    
-    if birth_date_str and expiry_date_str and issue_date_str:
-        try:
-            birth_date = pd.to_datetime(birth_date_str, dayfirst=True)
-            expiry_date = pd.to_datetime(expiry_date_str, dayfirst=True)
-            issue_date = pd.to_datetime(issue_date_str, dayfirst=True)
-            
-            # Check logical date relationships
-            valid_issue_date = birth_date < issue_date < expiry_date
-            
-            # If issue date is wrong, check if any of our dates were interchanged
-            if not valid_issue_date:
-                # Possible alternative date fields
-                alt_date_fields = ["original birth date", "original expiry date", "mrzDateOfBirth", "mrzDateOfExpiry"]
-                
-                # Check if issue date is actually birth date or after expiry (both invalid)
-                if issue_date <= birth_date or issue_date >= expiry_date:
-                    # Check specific known date fields for a valid issue date
-                    for field in alt_date_fields:
-                        if field in formatted_data:
-                            try:
-                                other_date = pd.to_datetime(formatted_data[field], dayfirst=True)
-                                # If this date is between birth and expiry, it's likely the real issue date
-                                if birth_date < other_date < expiry_date:
-                                    formatted_data["issue date"] = other_date.strftime('%d/%m/%Y')
-                                    break
-                            except:
-                                pass
-        except:
-            pass
-    
     # Format string fields
     for field in string_fields:
         if field in formatted_data:
@@ -197,8 +154,18 @@ def postprocess(json_data):
             date_obj = pd.to_datetime(value, errors='coerce', dayfirst=True)
             formatted_data[field] = date_obj.strftime('%d/%m/%Y') if date_obj is not pd.NaT else value
     
+    # Apply country-specific rules
     if country== "PHL": formatted_data = philippines_rules(formatted_data)
     if country == "NPL": formatted_data = nepal_rules(formatted_data)
     if country == "LKA": formatted_data = sri_lanka_rules(formatted_data)
+    
+    # Apply smart country-of-issue derivation for all countries if not already set
+    if not formatted_data.get("country of issue", "").strip():
+        place_of_issue = formatted_data.get("place of issue", "")
+        if place_of_issue:
+            from src.utils.country_rules import derive_country_of_issue
+            derived_country = derive_country_of_issue(place_of_issue)
+            if derived_country:
+                formatted_data["country of issue"] = derived_country
 
     return formatted_data
