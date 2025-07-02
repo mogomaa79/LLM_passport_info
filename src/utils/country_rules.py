@@ -237,7 +237,8 @@ def philippines_rules(formatted_data):
             # Invalid character, reject
             return ""
     
-
+    formatted_data["country"] = "PHL"
+    
     place_of_issue = formatted_data.get("place of issue", "")
     if place_of_issue:
         derived_country = derive_country_of_issue(place_of_issue)
