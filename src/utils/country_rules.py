@@ -1,5 +1,42 @@
 import re
-from unidecode import unidecode
+from fuzzywuzzy import fuzz
+
+def correct_ocr_characters(text):
+    if not text or not isinstance(text, str):
+        return text
+    
+    # Common OCR character corrections
+    corrections = {
+        'O': '0',  # Letter O to digit 0
+        'I': '1',  # Letter I to digit 1
+        'S': '5',  # Letter S to digit 5
+        'B': '8',  # Letter B to digit 8
+        'G': '6',  # Letter G to digit 6
+        'Z': '2',  # Letter Z to digit 2
+        'l': '1',  # Lowercase L to digit 1
+        'o': '0',  # Lowercase O to digit 0
+        's': '5',  # Lowercase S to digit 5
+        'g': '6',  # Lowercase G to digit 6
+        'z': '2',  # Lowercase Z to digit 2
+    }
+    
+    # Apply corrections
+    corrected_text = ""
+    for char in text:
+        corrected_text += corrections.get(char, char)
+    
+    return corrected_text
+
+def correct_ocr_digit_section(text, start_pos, end_pos):
+    if not text or start_pos >= len(text) or end_pos > len(text) or start_pos >= end_pos:
+        return text
+    
+    # Extract the section to correct
+    section = text[start_pos:end_pos]
+    corrected_section = correct_ocr_characters(section)
+    
+    # Reconstruct the text with corrected section
+    return text[:start_pos] + corrected_section + text[end_pos:]
 
 def derive_country_of_issue(place_of_issue):
     """
@@ -199,12 +236,8 @@ def derive_country_of_issue(place_of_issue):
     
     return ""
 
-def philippines_rules(formatted_data):
-    import re
-    from unidecode import unidecode
-    
-    def validate_passport_number(number_str):
-        """Validate Philippine passport number with complex rules"""
+def philippines_rules(formatted_data):  
+    def process_number(number_str):
         if not number_str or not isinstance(number_str, str):
             return ""
         
@@ -219,6 +252,9 @@ def philippines_rules(formatted_data):
             return ""
         
         # Digit block check - positions 2-8 must be digits
+        # First convert letters that look like numbers using OCR correction
+        number = correct_ocr_digit_section(number, 1, 8)
+        
         if not number[1:8].isdigit():
             return ""
         
@@ -237,31 +273,153 @@ def philippines_rules(formatted_data):
             # Invalid character, reject
             return ""
     
-    formatted_data["country"] = "PHL"
-    
+    formatted_data["number"] = process_number(formatted_data.get("number", ""))
+
     place_of_issue = formatted_data.get("place of issue", "")
     if place_of_issue:
         derived_country = derive_country_of_issue(place_of_issue)
         if derived_country:
             formatted_data["country of issue"] = derived_country
-    
+
     return formatted_data
 
 def ethiopia_rules(formatted_data):
+    def process_number(number_str):
+        if not number_str or not isinstance(number_str, str):
+            return ""
+        
+        number = number_str.strip().upper()
+        
+        # Length check - must be exactly 9 characters
+        if len(number) != 9:
+            return ""
+        
+        # Prefix check - must start with 'EQ' or 'EP'
+        if not (number.startswith("EQ") or number.startswith("EP")):
+            return ""
+        
+        # Digit block check - positions 3-9 must be digits
+        # First convert letters that look like numbers using OCR correction
+        number = correct_ocr_digit_section(number, 2, 9)
+        
+        # Validate that positions 3-9 are digits
+        if not number[2:].isdigit():
+            return ""
+        
+        return number
+    
+    formatted_data["number"] = process_number(formatted_data.get("number", ""))
     formatted_data["place of issue"] = "ETHIOPIA"
     formatted_data["country of issue"] = "ETHIOPIA"
 
-    # Number must be EQ then 7 digits or EP then 7 digits
-    number = formatted_data.get("number", "")
-    if len(number) < 9 or number[:2] not in ("EQ", "EP"): formatted_data["number"] = ""
-    elif len(number) > 9: formatted_data["number"] = number[:9]
+    return formatted_data
 
+def kenya_rules(formatted_data):
+    def process_number(number_str):
+        if not number_str or not isinstance(number_str, str):
+            return ""
+        
+        number = number_str.strip().upper()
+        
+        # Length check - must be exactly 9 characters
+        if len(number) < 8: return ""
+        elif len(number) > 9: number = number[:9]
+        
+        if not (number.startswith("AK") or number.startswith("BK") or number.startswith("CK")): return ""
+
+        number = correct_ocr_digit_section(number, 2, 8)
+        
+        # Validate that positions 3-9 are digits
+        if not number[2:].isdigit():
+            return ""
+        
+        return number
+    
+    def fuzzy_match_place_of_issue(place_str):
+        if not place_str or not isinstance(place_str, str):
+            return ""
+        
+        place = place_str.strip().upper()
+        
+        # Target patterns for fuzzy matching
+        target_patterns = {
+            "GOVERNMENT OF KENYA": 80,
+            "REGISTRAR GENERAL HRE": 80,
+        }
+        
+        # Find best match using fuzzywuzzy
+        best_match = None
+        best_score = 0
+        
+        for pattern, threshold in target_patterns.items():
+            score = fuzz.ratio(place, pattern)
+            if score >= threshold and score > best_score:
+                best_match = pattern
+                best_score = score
+        
+        if not best_match:
+            print(f"No best match found for {place_str}")
+        return best_match if best_match else place_str
+    
+    # Process passport number
+    formatted_data["number"] = process_number(formatted_data.get("number", ""))
+    
+    if place_of_issue := formatted_data.get("place of issue", ""):
+        normalized_place = fuzzy_match_place_of_issue(place_of_issue)
+        formatted_data["place of issue"] = normalized_place
+    
+    formatted_data["country of issue"] = "KENYA"
+    
+    if place_of_birth := formatted_data.get("place of birth", ""):
+        place_of_birth = re.sub(r',\s*KEN$', '', place_of_birth, flags=re.IGNORECASE)
+        place_of_birth = re.sub(r'\s+KEN$', '', place_of_birth, flags=re.IGNORECASE)
+        formatted_data["place of birth"] = place_of_birth.strip()
+    
+    surname = formatted_data.get("surname", "")
+    if surname:
+        formatted_data["surname"] = surname.replace("<", " ").strip()
+    
     return formatted_data
 
 def nepal_rules(formatted_data):
-    if "MOFA" in formatted_data.get("place of issue", ""):
-        formatted_data["place of issue"] = "MOFA"
-        formatted_data["country of issue"] = "NEPAL"
+    def fuzzy_match_place_of_issue(place_str):
+        if not place_str or not isinstance(place_str, str):
+            return ""
+        
+        place = place_str.strip().upper()
+        
+        # Target pattern for fuzzy matching
+        target_pattern = "MOFA DEPARTMENT OF PASSPORTS"
+        
+        # Use partial ratio for substring matching (more lenient)
+        partial_score = fuzz.partial_ratio(place, target_pattern)
+        full_score = fuzz.ratio(place, target_pattern)
+        
+        # Lower threshold for more lenient matching
+        if partial_score >= 60 or full_score >= 50:
+            return "MOFA DEPARTMENT OF PASSPORTS"
+        
+        # Additional check for key words
+        key_words = ["MOFA", "PASSPORT", "DEPARTMENT"]
+        words_in_place = place.split()
+        matches = sum(1 for word in key_words if any(fuzz.ratio(word, place_word) >= 70 for place_word in words_in_place))
+        
+        # If at least 2 key words match, consider it a match
+        if matches >= 2:
+            return "MOFA DEPARTMENT OF PASSPORTS"
+        
+        # Even more lenient check - if "MOFA" appears anywhere
+        if "MOFA" in place or any(fuzz.ratio("MOFA", word) >= 80 for word in words_in_place):
+            return "MOFA DEPARTMENT OF PASSPORTS"
+        
+        return place_str
+    
+    # Process place of issue with fuzzy matching
+    if place_of_issue := formatted_data.get("place of issue", ""):
+        normalized_place = fuzzy_match_place_of_issue(place_of_issue)
+        if normalized_place == "MOFA DEPARTMENT OF PASSPORTS":
+            formatted_data["place of issue"] = "MOFA"
+            formatted_data["country of issue"] = "NEPAL"
     
     number = formatted_data.get("number", "")
     if len(number) < 6: formatted_data["number"] = ""
@@ -288,3 +446,4 @@ def india_rules(formatted_data):
     elif len(number) > 9: formatted_data["number"] = number[:9]
 
     return formatted_data
+

@@ -9,7 +9,6 @@ place_validator = PlaceValidator(matching_threshold=93)
 
 def postprocess(json_data):
     formatted_data = dict(json_data)
-    country = formatted_data["country"]
 
     string_fields = [
         "number", "country", "name", "surname", "middle name", "gender",
@@ -42,6 +41,16 @@ def postprocess(json_data):
 
     mrz_line1 = mrz_line1.strip()
     mrz_line2 = mrz_line2.strip()
+
+    mrz_country_l1 = mrz_line1[2:5]
+    mrz_country_l2 = mrz_line2[9:13]
+
+    if mrz_country_l1 in mapper.values():
+        formatted_data["country"] = mrz_country_l1
+    if mrz_country_l2 in mapper.values():
+        formatted_data["country"] = mrz_country_l2
+
+    country = formatted_data["country"]
 
     if len(mrz_line1) >= 44 and country != "LKA":
         name_part = mrz_line1[5:]
@@ -155,7 +164,9 @@ def postprocess(json_data):
             formatted_data[field] = date_obj.strftime('%d/%m/%Y') if date_obj is not pd.NaT else value
     
     # Apply country-specific rules
-    if country== "PHL": formatted_data = philippines_rules(formatted_data)
+    if country == "PHL": formatted_data = philippines_rules(formatted_data)
+    if country == "ETH": formatted_data = ethiopia_rules(formatted_data)
+    if country == "KEN": formatted_data = kenya_rules(formatted_data)
     if country == "NPL": formatted_data = nepal_rules(formatted_data)
     if country == "LKA": formatted_data = sri_lanka_rules(formatted_data)
     

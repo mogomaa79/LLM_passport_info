@@ -35,20 +35,80 @@ class ResultsAgent:
                  ["./static/OCR Extracted Data and User Modifications (feb 1- march 31) .xlsx", 
                   "./static/OCR Extracted Data and User Modifications- April 1 till 28.xlsx",
                   "./static/OCR Extracted Data and User Modifications (1-9-2024 till 14-5-2025).xlsx",
-                  "./static/OCR Extracted Data and User Modifications - all 2024.xlsx"]):
+                  "./static/OCR Extracted Data and User Modifications - all 2024.xlsx"],
+                 consolidated_file_path: str = "./static/consolidated_data.parquet"):
         
         self.country = country
         self.spreadsheet_id = spreadsheet_id
         self.credentials_path = credentials_path
-        self.all_df = pd.DataFrame()
-        for excel_path in excel_paths:
+        self.excel_paths = excel_paths
+        self.consolidated_file_path = consolidated_file_path
+        
+        # Load data efficiently
+        self.all_df = self._load_consolidated_data()
+
+    def _load_consolidated_data(self) -> pd.DataFrame:
+        """Load data from consolidated file if it exists and is up-to-date, otherwise create it."""
+        
+        # Check if consolidated file exists and is newer than all Excel files
+        if os.path.exists(self.consolidated_file_path):
+            consolidated_mtime = os.path.getmtime(self.consolidated_file_path)
+            excel_files_newer = False
+            
+            for excel_path in self.excel_paths:
+                if os.path.exists(excel_path):
+                    if os.path.getmtime(excel_path) > consolidated_mtime:
+                        excel_files_newer = True
+                        break
+            
+            # If consolidated file is up-to-date, load it quickly
+            if not excel_files_newer:
+                print(f"Loading consolidated data from {self.consolidated_file_path}...")
+                df = pd.read_parquet(self.consolidated_file_path)
+                print(f"Loaded {len(df)} records from consolidated file.")
+                return df
+        
+        # Otherwise, create consolidated file
+        print("Creating consolidated data file...")
+        return self._create_consolidated_data()
+
+    def _create_consolidated_data(self) -> pd.DataFrame:
+        """Load all Excel files, process them, and save as consolidated Parquet file."""
+        all_df = pd.DataFrame()
+        
+        for excel_path in self.excel_paths:
+            if not os.path.exists(excel_path):
+                print(f"Warning: File {excel_path} does not exist, skipping...")
+                continue
+                
+            print(f"Loading {excel_path}...")
             try:
                 excel_df = pd.read_excel(excel_path, sheet_name="Data")
             except:
-                excel_df = pd.read_excel(excel_path, sheet_name="Sheet 1")
-            self.all_df = pd.concat([self.all_df, excel_df])
-        self.all_df.ffill(inplace=True)
-        self.all_df.drop_duplicates(subset=["Maid’s ID", "Modified Field"], inplace=True)
+                try:
+                    excel_df = pd.read_excel(excel_path, sheet_name="Sheet 1")
+                except Exception as e:
+                    print(f"Error loading {excel_path}: {e}")
+                    continue
+            
+            all_df = pd.concat([all_df, excel_df], ignore_index=True)
+        
+        # Process the data
+        all_df.ffill(inplace=True)
+        all_df.drop_duplicates(subset=["Maid’s ID", "Modified Field"], inplace=True)
+        
+        # Save consolidated file
+        os.makedirs(os.path.dirname(self.consolidated_file_path), exist_ok=True)
+        all_df.to_parquet(self.consolidated_file_path, index=False)
+        print(f"Saved consolidated data to {self.consolidated_file_path} with {len(all_df)} records.")
+        
+        return all_df
+
+    def refresh_consolidated_data(self):
+        """Force refresh of consolidated data by reloading from Excel files."""
+        if os.path.exists(self.consolidated_file_path):
+            os.remove(self.consolidated_file_path)
+        self.all_df = self._create_consolidated_data()
 
     def edit_agent_value(self, value, field):
         value = str(value).strip().upper()

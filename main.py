@@ -1,7 +1,6 @@
 import traceback
 import random
 import os
-import time
 from dotenv import load_dotenv
 from json.decoder import JSONDecodeError
 
@@ -20,7 +19,7 @@ load_dotenv()
 LANGSMITH_API_KEY = os.getenv("LANGSMITH_API_KEY")
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
 
-DATASET_NAME = "Philippines"
+DATASET_NAME = "Nepal"
 MODEL = "gemini-2.5-pro"
 SPLITS = ["test"]
 
@@ -38,7 +37,7 @@ def get_prompt():
 
 def map_input_to_messages_lambda(inputs: dict):
     """Convert inputs to LangChain messages format"""
-    multimodal_prompt = inputs.get("multimodal_prompt")
+    multimodal_prompt = inputs.get("multimodal_prompt", [])
     prompt_text = get_prompt()
     
     multimodal_prompt.insert(0, {"type": "text", "text": prompt_text})
@@ -66,7 +65,7 @@ def main():
     postprocessor = RunnableLambda(postprocess)
 
     def llm_chain_factory():
-        return runnable | llm_retry | json_parser | postprocessor
+        return runnable | llm_retry | json_parser
 
     print(f"\nStarting run on dataset '{DATASET_NAME}' with project name '{PROJECT_NAME}'...")
 
