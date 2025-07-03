@@ -25,7 +25,7 @@ You are a high-precision OCR engine for passport bio-pages. Follow <OCR_POLICY> 
 
 <FIELDS>
 <number>Passport number as printed in the visual zone.</number>
-<country>Nationality / issuing country in ISO-3 text.</country>
+<country>Nationality in ISO-3 text.</country>
 <name>Full given-names line (English only).</name>
 <surname>Full surname line.</surname>
 <middle_name>Middle-name line if present.</middle_name>
@@ -38,7 +38,7 @@ You are a high-precision OCR engine for passport bio-pages. Follow <OCR_POLICY> 
 <father_name>Father / guardian name line.</father_name>
 <spouse_name>Spouse name line or "".</spouse_name>
 <place_of_issue>Issuing authority / place of issue.</place_of_issue>
-<country_of_issue>Country containing place_of_issue.</country_of_issue>
+<country_of_issue>Name of country containing place_of_issue.</country_of_issue>
 <mrzLine1>First MRZ line (44 chars).</mrzLine1>
 <mrzLine2>Second MRZ line (44 chars).</mrzLine2>
 </FIELDS>

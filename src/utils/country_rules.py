@@ -38,6 +38,50 @@ def correct_ocr_digit_section(text, start_pos, end_pos):
     # Reconstruct the text with corrected section
     return text[:start_pos] + corrected_section + text[end_pos:]
 
+def fuzzy_match_place_patterns(place_str, patterns_config):
+    """
+    Generic fuzzy matching function for place of issue patterns.
+    
+    Args:
+        place_str: The place string to match against
+        patterns_config: List of dicts with keys 'pattern', 'standardized', 'key_words'
+    
+    Returns:
+        Standardized place string if match found, original string otherwise
+    """
+    if not place_str or not isinstance(place_str, str):
+        return ""
+    
+    place = place_str.strip().upper()
+    
+    for config in patterns_config:
+        target_pattern = config['pattern']
+        standardized_form = config['standardized']
+        key_words = config.get('key_words', [])
+        
+        # Use partial ratio for substring matching (more lenient)
+        partial_score = fuzz.partial_ratio(place, target_pattern)
+        full_score = fuzz.ratio(place, target_pattern)
+        
+        # Lower threshold for more lenient matching
+        if partial_score >= 60 or full_score >= 50:
+            return standardized_form
+        
+        # Additional check for key words if provided
+        if key_words:
+            words_in_place = place.split()
+            matches = sum(1 for word in key_words if any(fuzz.ratio(word, place_word) >= 70 for place_word in words_in_place))
+            
+            # If at least 2 key words match, consider it a match
+            if matches >= 2:
+                return standardized_form
+        
+        # Even more lenient check - if first key word appears anywhere
+        if key_words and (key_words[0] in place or any(fuzz.ratio(key_words[0], word) >= 80 for word in place.split())):
+            return standardized_form
+    
+    return place_str
+
 def derive_country_of_issue(place_of_issue):
     """
     Smart function to derive country of issue from place of issue.
@@ -64,6 +108,7 @@ def derive_country_of_issue(place_of_issue):
         "MECCA": "SAUDI ARABIA",
         "MEDINA": "SAUDI ARABIA",
         "MUSCAT": "OMAN",
+        "MUSKAT": "OMAN",  # OCR variant of MUSCAT
         "BEIRUT": "LEBANON",
         "AMMAN": "JORDAN",
         "DAMASCUS": "SYRIA",
@@ -115,11 +160,11 @@ def derive_country_of_issue(place_of_issue):
         "ANKARA": "TURKEY",
         
         # North America
-        "NEW YORK": "UNITED STATES",
-        "WASHINGTON": "UNITED STATES",
-        "LOS ANGELES": "UNITED STATES",
-        "CHICAGO": "UNITED STATES",
-        "SAN FRANCISCO": "UNITED STATES",
+        "NEW YORK": "UNITED STATES OF AMERICA",
+        "WASHINGTON": "UNITED STATES OF AMERICA",
+        "LOS ANGELES": "UNITED STATES OF AMERICA",
+        "CHICAGO": "UNITED STATES OF AMERICA",
+        "SAN FRANCISCO": "UNITED STATES OF AMERICA",
         "TORONTO": "CANADA",
         "VANCOUVER": "CANADA",
         "MONTREAL": "CANADA",
@@ -138,6 +183,59 @@ def derive_country_of_issue(place_of_issue):
         "TUNIS": "TUNISIA",
         "ALGIERS": "ALGERIA",
         "TRIPOLI": "LIBYA",
+        
+        # Uganda
+        "KAMPALA": "UGANDA",
+        "GULU": "UGANDA",
+        "FORT PORTAL": "UGANDA",
+        "ARUA": "UGANDA",
+        "ENTEBBE": "UGANDA",
+        "JINJA": "UGANDA",
+        "MBARARA": "UGANDA",
+        "MASAKA": "UGANDA",
+        "SOROTI": "UGANDA",
+        "LIRA": "UGANDA",
+        "HOIMA": "UGANDA",
+        "MBALE": "UGANDA",
+        
+        # India
+        "RANCHI": "INDIA",
+        "CHANDIGARH": "INDIA",
+        "NEW DELHI": "INDIA",
+        "DELHI": "INDIA",
+        "MUMBAI": "INDIA",
+        "KOLKATA": "INDIA",
+        "CHENNAI": "INDIA",
+        "BANGALORE": "INDIA",
+        "BENGALURU": "INDIA",  # Alternative name for Bangalore
+        "HYDERABAD": "INDIA",
+        "AHMEDABAD": "INDIA",
+        "PUNE": "INDIA",
+        "JAIPUR": "INDIA",
+        "LUCKNOW": "INDIA",
+        "KANPUR": "INDIA",
+        "NAGPUR": "INDIA",
+        "INDORE": "INDIA",
+        "BHOPAL": "INDIA",
+        "PATNA": "INDIA",
+        "GUWAHATI": "INDIA",
+        "THIRUVANANTHAPURAM": "INDIA",
+        "TRIVANDRUM": "INDIA",  # Alternative name for Thiruvananthapuram
+        "KOCHI": "INDIA",
+        "COCHIN": "INDIA",  # Alternative name for Kochi
+        "VISAKHAPATNAM": "INDIA",
+        "JALANDHAR": "INDIA",
+        "KOZHIKODE": "INDIA",
+        "SURAT": "INDIA",
+        "TIRUCHIRAPPALLI": "INDIA",
+        "PANAJI": "INDIA",
+        "AMRITSAR": "INDIA",
+        "COIMBATORE": "INDIA",
+        "MADURAI": "INDIA",
+        "DEHRADUN": "INDIA",
+        "BHUBANESWAR": "INDIA",
+        "JAMMU": "INDIA",
+        "THANE": "INDIA",
         
         # South America
         "SAO PAULO": "BRAZIL",
@@ -274,12 +372,17 @@ def philippines_rules(formatted_data):
             return ""
     
     formatted_data["number"] = process_number(formatted_data.get("number", ""))
+    formatted_data["middle name"] = ""
+    formatted_data["mother name"] = ""
+    formatted_data["father name"] = ""
 
     place_of_issue = formatted_data.get("place of issue", "")
     if place_of_issue:
         derived_country = derive_country_of_issue(place_of_issue)
         if derived_country:
             formatted_data["country of issue"] = derived_country
+    else:
+        formatted_data["country of issue"] = ""
 
     return formatted_data
 
@@ -311,6 +414,8 @@ def ethiopia_rules(formatted_data):
     formatted_data["number"] = process_number(formatted_data.get("number", ""))
     formatted_data["place of issue"] = "ETHIOPIA"
     formatted_data["country of issue"] = "ETHIOPIA"
+    formatted_data["mother name"] = ""
+    formatted_data["father name"] = ""
 
     return formatted_data
 
@@ -335,40 +440,29 @@ def kenya_rules(formatted_data):
         
         return number
     
-    def fuzzy_match_place_of_issue(place_str):
-        if not place_str or not isinstance(place_str, str):
-            return ""
-        
-        place = place_str.strip().upper()
-        
-        # Target patterns for fuzzy matching
-        target_patterns = {
-            "GOVERNMENT OF KENYA": 80,
-            "REGISTRAR GENERAL HRE": 80,
+    # Define patterns for fuzzy matching
+    kenya_patterns = [
+        {
+            'pattern': 'GOVERNMENT OF KENYA',
+            'standardized': 'GOVERNMENT OF KENYA',
+            'key_words': ['GOVERNMENT', 'KENYA']
+        },
+        {
+            'pattern': 'REGISTRAR GENERAL HRE',
+            'standardized': 'REGISTRAR GENERAL HRE',
+            'key_words': ['REGISTRAR', 'GENERAL', 'HRE']
         }
-        
-        # Find best match using fuzzywuzzy
-        best_match = None
-        best_score = 0
-        
-        for pattern, threshold in target_patterns.items():
-            score = fuzz.ratio(place, pattern)
-            if score >= threshold and score > best_score:
-                best_match = pattern
-                best_score = score
-        
-        if not best_match:
-            print(f"No best match found for {place_str}")
-        return best_match if best_match else place_str
+    ]
     
     # Process passport number
-    formatted_data["number"] = process_number(formatted_data.get("number", ""))
-    
+    formatted_data["number"] = process_number(formatted_data.get("number", ""))    
     if place_of_issue := formatted_data.get("place of issue", ""):
-        normalized_place = fuzzy_match_place_of_issue(place_of_issue)
+        normalized_place = fuzzy_match_place_patterns(place_of_issue, kenya_patterns)
         formatted_data["place of issue"] = normalized_place
     
     formatted_data["country of issue"] = "KENYA"
+    formatted_data["mother name"] = ""
+    formatted_data["father name"] = ""
     
     if place_of_birth := formatted_data.get("place of birth", ""):
         place_of_birth = re.sub(r',\s*KEN$', '', place_of_birth, flags=re.IGNORECASE)
@@ -382,68 +476,202 @@ def kenya_rules(formatted_data):
     return formatted_data
 
 def nepal_rules(formatted_data):
-    def fuzzy_match_place_of_issue(place_str):
-        if not place_str or not isinstance(place_str, str):
-            return ""
-        
-        place = place_str.strip().upper()
-        
-        # Target pattern for fuzzy matching
-        target_pattern = "MOFA DEPARTMENT OF PASSPORTS"
-        
-        # Use partial ratio for substring matching (more lenient)
-        partial_score = fuzz.partial_ratio(place, target_pattern)
-        full_score = fuzz.ratio(place, target_pattern)
-        
-        # Lower threshold for more lenient matching
-        if partial_score >= 60 or full_score >= 50:
-            return "MOFA DEPARTMENT OF PASSPORTS"
-        
-        # Additional check for key words
-        key_words = ["MOFA", "PASSPORT", "DEPARTMENT"]
-        words_in_place = place.split()
-        matches = sum(1 for word in key_words if any(fuzz.ratio(word, place_word) >= 70 for place_word in words_in_place))
-        
-        # If at least 2 key words match, consider it a match
-        if matches >= 2:
-            return "MOFA DEPARTMENT OF PASSPORTS"
-        
-        # Even more lenient check - if "MOFA" appears anywhere
-        if "MOFA" in place or any(fuzz.ratio("MOFA", word) >= 80 for word in words_in_place):
-            return "MOFA DEPARTMENT OF PASSPORTS"
-        
-        return place_str
+    # Define patterns for fuzzy matching
+    nepal_patterns = [
+        {
+            'pattern': 'MOFA DEPARTMENT OF PASSPORTS',
+            'standardized': 'MOFA',
+            'key_words': ['MOFA', 'PASSPORT', 'DEPARTMENT']
+        }
+    ]
     
     # Process place of issue with fuzzy matching
     if place_of_issue := formatted_data.get("place of issue", ""):
-        normalized_place = fuzzy_match_place_of_issue(place_of_issue)
-        if normalized_place == "MOFA DEPARTMENT OF PASSPORTS":
+        normalized_place = fuzzy_match_place_patterns(place_of_issue, nepal_patterns)
+        if normalized_place == "MOFA":
             formatted_data["place of issue"] = "MOFA"
             formatted_data["country of issue"] = "NEPAL"
     
     number = formatted_data.get("number", "")
     if len(number) < 6: formatted_data["number"] = ""
     elif len(number) > 9: formatted_data["number"] = number[:9]
+
+    number = correct_ocr_digit_section(number, 2, 9)
+    if not number[2:].isdigit():
+        formatted_data["number"] = ""
+
+    formatted_data["middle name"] = ""
+    formatted_data["mother name"] = ""
+    formatted_data["father name"] = ""
         
     return formatted_data
 
 def sri_lanka_rules(formatted_data):
     formatted_data["surname"] = formatted_data.get("surname", "").replace("<", " ")
-    place_of_issue = formatted_data.get("place of issue", "")
-    if "COLOMBO" in place_of_issue:
-        formatted_data["place of issue"] = "COLOMBO"
-        formatted_data["country of issue"] = "SRI LANKA"
+    
+    # Define patterns for fuzzy matching
+    sri_lanka_patterns = [
+        {
+            'pattern': 'AUTHORITY COLOMBO',
+            'standardized': 'COLOMBO',
+            'key_words': ['AUTHORITY', 'COLOMBO']
+        }
+    ]
+    
+    # Process place of issue with fuzzy matching
+    if place_of_issue := formatted_data.get("place of issue", ""):
+        normalized_place = fuzzy_match_place_patterns(place_of_issue, sri_lanka_patterns)
+        if normalized_place == "COLOMBO":
+            formatted_data["place of issue"] = "COLOMBO"
+            formatted_data["country of issue"] = "SRI LANKA"
     
     number = formatted_data.get("number", "")
     if len(number) < 6: formatted_data["number"] = ""
     elif len(number) > 9: formatted_data["number"] = number[:9]
 
+    formatted_data["middle name"] = ""
+    formatted_data["mother name"] = ""
+    formatted_data["father name"] = ""
+
     return formatted_data
 
 def india_rules(formatted_data):
     number = formatted_data.get("number", "")
-    if len(number) < 9: formatted_data["number"] = ""
+    if len(number) < 6: formatted_data["number"] = ""
     elif len(number) > 9: formatted_data["number"] = number[:9]
 
+    # Process place of issue
+    place_of_issue = formatted_data.get("place of issue", "")
+    if place_of_issue and place_of_issue.strip():
+        # Use derive_country_of_issue to map place to country
+        derived_country = derive_country_of_issue(place_of_issue)
+        if derived_country:
+            formatted_data["country of issue"] = derived_country
+        else:
+            # If no mapping found, leave empty
+            formatted_data["country of issue"] = ""
+    else:
+        # If place of issue is blank/unreadable, leave country empty
+        formatted_data["country of issue"] = ""
+
+    # Handle mother name - take only first word
+    mother_name = formatted_data.get("mother name", "")
+    if mother_name:
+        formatted_data["mother name"] = mother_name.split(" ")[0]
+ 
     return formatted_data
 
+def uganda_rules(formatted_data):
+    def process_place_of_issue(place_str):
+        if not place_str or not isinstance(place_str, str):
+            return ""
+        
+        # Start with the full string exactly as it appears (after basic whitespace cleanup)
+        place = place_str.strip().upper()
+        words = place.split()
+        
+        # Define target government words to fuzzy match against
+        govt_words = ['GOVT', 'GOVERNMENT']
+        country_words = ['UGANDA', 'UGA']
+        
+        # Find government and country words using fuzzy matching
+        govt_positions = []
+        country_positions = []
+        
+        for i, word in enumerate(words):
+            # Check for government words - find best match
+            best_govt_score = 0
+            best_govt_match = None
+            for govt_word in govt_words:
+                score = fuzz.ratio(word, govt_word)
+                if score >= 70 and score > best_govt_score:
+                    best_govt_score = score
+                    best_govt_match = govt_word
+            
+            if best_govt_match:
+                govt_positions.append(i)
+            
+            # Check for compound government words (like "GOV T")
+            if i < len(words) - 1:
+                compound_word = word + words[i + 1]  # "GOV" + "T" = "GOVT"
+                for govt_word in govt_words:
+                    if fuzz.ratio(compound_word, govt_word) >= 80:
+                        govt_positions.append(i + 1)  # Position after compound word
+                        break
+            
+            # Check for country words - find best match
+            best_country_score = 0
+            best_country_match = None
+            for country_word in country_words:
+                score = fuzz.ratio(word, country_word)
+                if score >= 70 and score > best_country_score:
+                    best_country_score = score
+                    best_country_match = country_word
+            
+            if best_country_match:
+                country_positions.append(i)
+            
+            # Check for compound country words (like "U GA")
+            if i < len(words) - 1:
+                compound_word = word + words[i + 1]  # "U" + "GA" = "UGA"
+                for country_word in country_words:
+                    if fuzz.ratio(compound_word, country_word) >= 80:
+                        country_positions.append(i + 1)  # Position after compound word
+                        break
+        
+        # If we found both government and country words, extract the city
+        if govt_positions and country_positions:
+            # Find the maximum position of government/country words
+            max_govt_pos = max(govt_positions)
+            max_country_pos = max(country_positions)
+            max_prefix_pos = max(max_govt_pos, max_country_pos)
+            
+            # Extract everything after the government/country prefix
+            if max_prefix_pos < len(words) - 1:
+                city_words = words[max_prefix_pos + 1:]
+                place = ' '.join(city_words)
+            else:
+                # If no words after prefix, keep original
+                place = place_str.strip()
+        
+        # Country-Code Suffix Rule (fuzzy match UGA variants)
+        # Check if any word at the end fuzzy matches UGA
+        words = place.split()
+        if words:
+            last_word = words[-1]
+            if fuzz.ratio(last_word, 'UGA') >= 70:
+                place = ' '.join(words[:-1])
+        
+        # Minor OCR-Noise Cleanup
+        # Collapse multiple consecutive spaces to single space
+        place = re.sub(r'\s+', ' ', place)
+        
+        # Remove trailing commas or periods only at end of string
+        place = re.sub(r'[,.]$', '', place)
+        
+        return place.strip()
+    
+    # Process place of issue
+    if place_of_issue := formatted_data.get("place of issue", ""):
+        cleaned_place = process_place_of_issue(place_of_issue)
+        formatted_data["place of issue"] = cleaned_place
+        
+        # Derive country of issue from cleaned place
+        if cleaned_place:
+            derived_country = derive_country_of_issue(cleaned_place)
+            if derived_country:
+                formatted_data["country of issue"] = derived_country
+            else:
+                # Default to UGANDA if no specific country derived
+                formatted_data["country of issue"] = "UGANDA"
+        else:
+            formatted_data["country of issue"] = "UGANDA"
+    else:
+        formatted_data["country of issue"] = "UGANDA"
+    
+    # Standard field cleanup for consistency
+    formatted_data["middle name"] = ""
+    formatted_data["mother name"] = ""
+    formatted_data["father name"] = ""
+    
+    return formatted_data

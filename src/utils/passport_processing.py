@@ -52,7 +52,7 @@ def postprocess(json_data):
 
     country = formatted_data["country"]
 
-    if len(mrz_line1) >= 44 and country != "LKA":
+    if len(mrz_line1) >= 44 and country not in ["LKA", "IND"]:
         name_part = mrz_line1[5:]
         if "<<" in name_part:
             surname_end = name_part.find("<<")
@@ -169,6 +169,8 @@ def postprocess(json_data):
     if country == "KEN": formatted_data = kenya_rules(formatted_data)
     if country == "NPL": formatted_data = nepal_rules(formatted_data)
     if country == "LKA": formatted_data = sri_lanka_rules(formatted_data)
+    if country == "UGA": formatted_data = uganda_rules(formatted_data)
+    if country == "IND": formatted_data = india_rules(formatted_data)
     
     # Apply smart country-of-issue derivation for all countries if not already set
     if not formatted_data.get("country of issue", "").strip():
