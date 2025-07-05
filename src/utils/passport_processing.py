@@ -91,53 +91,68 @@ def postprocess(json_data):
 
     country = get_string_value(formatted_data.get("country", ""))
 
-    if len(mrz_line1) >= 8 and country not in ["LKA", "IND"]: 
-        surname_start_pos = -1
-        if country and len(country) == 3:
-            # Look for the country code in MRZ line 1
-            country_pos = mrz_line1.find(country)
-            if country_pos >= 0:
-                surname_start_pos = country_pos + 3  # Start after the 3-letter country code
+    # # Check if MRZ line 1 has corrupted data (more than 2 consecutive '<' followed by alphabetical characters)
+    # def is_mrz_corrupted(mrz_line):
+    #     """Check if MRZ line has corrupted data patterns that should be disregarded."""
+    #     if not mrz_line:
+    #         return False
         
-        # Fallback to position 5 if country code not found
-        if surname_start_pos == -1:
-            surname_start_pos = 5
+    #     import re
+    #     # Find sequences of 2 or more consecutive '<' followed by alphabetical characters
+    #     pattern = r'<{2,}[A-Z]'
+    #     if re.search(pattern, mrz_line):
+    #         return True
+    #     return False
+
+    # # Check if MRZ is corrupted before processing
+    # mrz_corrupted = is_mrz_corrupted(mrz_line1)
+    # if len(mrz_line1) >= 8 and country not in ["IND"] and not mrz_corrupted: 
+    #     surname_start_pos = -1
+    #     if country and len(country) == 3:
+    #         # Look for the country code in MRZ line 1
+    #         country_pos = mrz_line1.find(country)
+    #         if country_pos >= 0:
+    #             surname_start_pos = country_pos + 3  # Start after the 3-letter country code
         
-        name_part = mrz_line1[surname_start_pos:] if len(mrz_line1) > surname_start_pos else ""
+    #     # Fallback to position 5 if country code not found
+    #     if surname_start_pos == -1:
+    #         surname_start_pos = 5
         
-        # Get OCR name lengths for guidance
-        ocr_surname = get_string_value(formatted_data.get("surname", ""))
-        ocr_name = get_string_value(formatted_data.get("name", ""))
+    #     name_part = mrz_line1[surname_start_pos:] if len(mrz_line1) > surname_start_pos else ""
         
-        if name_part and "<<" in name_part:
-            surname_end = name_part.find("<<")
+    #     # Get OCR name lengths for guidance
+    #     ocr_surname = get_string_value(formatted_data.get("surname", ""))
+    #     ocr_name = get_string_value(formatted_data.get("name", ""))
+        
+    #     if name_part and "<<" in name_part:
+    #         surname_end = name_part.find("<<")
             
-            if surname_end > 0:
-                surname = name_part[:surname_end].replace("<", " ").strip()
-                formatted_data["mrz_surname"] = surname
+    #         if surname_end > 0:
+    #             surname = name_part[:surname_end].replace("<", " ").strip()
+    #             formatted_data["mrz_surname"] = surname
                 
-                if surname:
-                    clean_surname = re.sub(r'[^\w\s]', '', surname).upper().replace(" ", "")
-                    clean_original = re.sub(r'[^\w\s]', '', ocr_surname).upper().replace(" ", "")
-                    if clean_surname != clean_original:
-                        update_field_with_certainty("surname", surname, certainty=False)
+    #             if surname:
+    #                 clean_surname = re.sub(r'[^\w\s]', '', surname).upper().replace(" ", "")
+    #                 clean_original = re.sub(r'[^\w\s]', '', ocr_surname).upper().replace(" ", "")
+    #                 if clean_surname != clean_original:
+    #                     update_field_with_certainty("surname", surname, certainty=False)
             
-            names_start = name_part.find("<<") + 2
-            if names_start < len(name_part) and names_start >= 2:
-                names_end = name_part[names_start:].find("<<")
-                if names_end != -1:
-                    given_names = name_part[names_start:names_start + names_end].replace("<", " ").strip()
-                else:
-                    # Use all remaining characters if no second "<<" found (incomplete MRZ)
-                    given_names = name_part[names_start:].replace("<", " ").strip()
+    #         names_start = name_part.find("<<") + 2
+    #         if names_start < len(name_part) and names_start >= 2:
+    #             names_end = name_part[names_start:].find("<<")
+    #             if names_end != -1:
+    #                 given_names = name_part[names_start:names_start + names_end].replace("<", " ").strip()
+    #             else:
+    #                 # Use all remaining characters if no second "<<" found (incomplete MRZ)
+    #                 given_names = name_part[names_start:].replace("<", " ").strip()
                 
-                if given_names:
-                    clean_mrz = re.sub(r'[^\w\s]', '', given_names).upper().replace(" ", "")
-                    clean_original = re.sub(r'[^\w\s]', '', ocr_name).upper().replace(" ", "")
+    #             if given_names:
+    #                 clean_mrz = re.sub(r'[^\w\s]', '', given_names).upper().replace(" ", "")
+    #                 clean_original = re.sub(r'[^\w\s]', '', ocr_name).upper().replace(" ", "")
                     
-                    if (not clean_original or len(clean_original) < 3 or
-                        (len(clean_mrz) >= len(clean_original) and clean_original != clean_mrz)):
-                        update_field_with_certainty("name", given_names)
+    #                 if (not clean_original or len(clean_original) < 3 or
+    #                     (len(clean_mrz) >= len(clean_original) and clean_original != clean_mrz)):
+    #                     update_field_with_certainty("name", given_names)
     
     if len(mrz_line2) >= 10:
         doc_number = mrz_line2[:9].replace("<", "").strip()
