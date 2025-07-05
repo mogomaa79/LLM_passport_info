@@ -8,7 +8,36 @@ from src.utils.country_rules import *
 place_validator = PlaceValidator(matching_threshold=93)
 
 def postprocess(json_data):
+    """
+    Postprocess extraction results, handling both regular strings and CertainField objects.
+    Preserves certainty information throughout the process.
+    """
     formatted_data = dict(json_data)
+    
+    # Helper function to extract string value from CertainField or regular string
+    def get_string_value(field_value):
+        if hasattr(field_value, '__str__'):
+            return str(field_value)
+        return str(field_value) if field_value else ""
+    
+    # Helper function to get certainty from CertainField
+    def get_certainty(field_value):
+        if hasattr(field_value, 'certainty'):
+            return field_value.certainty
+        return False
+    
+    # Helper function to update field while preserving certainty
+    def update_field_with_certainty(field_name, new_value):
+        old_field = formatted_data.get(field_name, "")
+        certainty = get_certainty(old_field)
+        
+        # Import here to avoid circular imports
+        try:
+            from src.passport_extraction import CertainField
+            formatted_data[field_name] = CertainField(new_value, certainty)
+        except ImportError:
+            # Fallback if import fails
+            formatted_data[field_name] = new_value
 
     string_fields = [
         "number", "country", "name", "surname", "middle name", "gender",
@@ -33,8 +62,9 @@ def postprocess(json_data):
             total += value * weights[i % 3]
         return total % 10
     
-    mrz_line1 = formatted_data.get("mrzLine1", "")
-    mrz_line2 = formatted_data.get("mrzLine2", "")
+    # Extract string values for MRZ processing
+    mrz_line1 = get_string_value(formatted_data.get("mrzLine1", ""))
+    mrz_line2 = get_string_value(formatted_data.get("mrzLine2", ""))
 
     if not isinstance(mrz_line1, str): mrz_line1 = ""
     if not isinstance(mrz_line2, str): mrz_line2 = ""
@@ -46,11 +76,11 @@ def postprocess(json_data):
     mrz_country_l2 = mrz_line2[9:13]
 
     if mrz_country_l1 in mapper.values():
-        formatted_data["country"] = mrz_country_l1
+        update_field_with_certainty("country", mrz_country_l1)
     if mrz_country_l2 in mapper.values():
-        formatted_data["country"] = mrz_country_l2
+        update_field_with_certainty("country", mrz_country_l2)
 
-    country = formatted_data["country"]
+    country = get_string_value(formatted_data.get("country", ""))
 
     if len(mrz_line1) >= 44 and country not in ["LKA", "IND"]:
         name_part = mrz_line1[5:]
@@ -61,16 +91,16 @@ def postprocess(json_data):
                 formatted_data["mrz_surname"] = surname
                 if surname:
                     clean_surname = re.sub(r'[^\w\s]', '', surname).upper().replace(" ", "")
-                    clean_original = re.sub(r'[^\w\s]', '', formatted_data.get("surname", "")).upper().replace(" ", "")
+                    clean_original = re.sub(r'[^\w\s]', '', get_string_value(formatted_data.get("surname", ""))).upper().replace(" ", "")
                     if clean_original != clean_surname:
-                        formatted_data["surname"] = surname
+                        update_field_with_certainty("surname", surname)
             
             names_start = name_part.find("<<") + 2
             if names_start < len(name_part):
                 names_end = name_part[names_start:].find("<<")
                 if names_end != -1:
                     given_names = name_part[names_start:names_end].replace("<", " ").strip()
-                    original_name = formatted_data.get("name", "")
+                    original_name = get_string_value(formatted_data.get("name", ""))
                     if original_name:
                         clean_original = re.sub(r'[^\w\s]', '', original_name).upper().replace(" ", "")
                         clean_mrz = re.sub(r'[^\w\s]', '', given_names).upper().replace(" ", "")
@@ -78,9 +108,9 @@ def postprocess(json_data):
                         max_mrz_chars = len(name_part) - names_start
                         
                         if clean_original != clean_mrz and (len(clean_original) <= len(clean_mrz) and len(clean_original) <= max_mrz_chars):
-                            formatted_data["name"] = given_names
+                            update_field_with_certainty("name", given_names)
                     else:
-                        formatted_data["name"] = given_names
+                        update_field_with_certainty("name", given_names)
     
     if len(mrz_line2) >= 10:
         doc_number = mrz_line2[:9].replace("<", "").strip()
@@ -88,7 +118,7 @@ def postprocess(json_data):
         if doc_number and doc_number_check.isdigit():
             calculated_check = str(calculate_checksum(doc_number.ljust(9, '<')))
             if calculated_check == doc_number_check or not doc_number_check.isdigit():
-                formatted_data["number"] = doc_number
+                update_field_with_certainty("number", doc_number)
     
     if len(mrz_line2) >= 20: 
         birth_date = mrz_line2[13:19]
@@ -104,14 +134,14 @@ def postprocess(json_data):
                 try:
                     date_obj = pd.to_datetime(f"{century + year}-{month}-{day}", errors='coerce')
                     if date_obj is not pd.NaT:
-                        formatted_data["birth date"] = date_obj.strftime('%d/%m/%Y')
+                        update_field_with_certainty("birth date", date_obj.strftime('%d/%m/%Y'))
                 except:
                     pass
     
     if len(mrz_line2) >= 21:
         gender = mrz_line2[20]
         if gender in ["M", "F"]:
-            formatted_data["gender"] = gender
+            update_field_with_certainty("gender", gender)
     
     if len(mrz_line2) >= 28:  # Include checksum digit
         expiry_date = mrz_line2[21:27]
@@ -127,58 +157,66 @@ def postprocess(json_data):
                 try:
                     date_obj = pd.to_datetime(f"{century + year}-{month}-{day}", errors='coerce')
                     if date_obj is not pd.NaT:
-                        formatted_data["expiry date"] = date_obj.strftime('%d/%m/%Y')
+                        update_field_with_certainty("expiry date", date_obj.strftime('%d/%m/%Y'))
                 except:
                     pass
     
-    # issue_place = str(formatted_data.get("place of issue", ""))
-    # birth_place = str(formatted_data.get("place of birth", ""))
-
-    # if issue_place and country:
-    #     issue_place_result = place_validator.validate_issue_place(issue_place, country)
-    #     if issue_place_result["is_valid"]:
-    #         formatted_data["place of issue"] = issue_place_result["matched_name"]
-    
-    # if birth_place and country:
-    #     birth_place_result = place_validator.validate_birth_place(birth_place, country)
-    #     if birth_place_result["is_valid"]:
-    #         formatted_data["place of birth"] = birth_place_result["matched_name"]
-    
-    # Format string fields
+    # Format string fields while preserving certainty
     for field in string_fields:
         if field in formatted_data:
-            value = str(formatted_data[field]).upper()
+            value = get_string_value(formatted_data[field]).upper()
             if value == "NAN": value = ""
             value = re.sub(r'[^\w\s]', ' ', value)
             # replace all diacritics with their base letter
             value = unidecode(value)
             value = re.sub(r'\s+', ' ', value)
             if value:
-                formatted_data[field] = value.strip()
+                update_field_with_certainty(field, value.strip())
     
-    # Format date fields
+    # Format date fields while preserving certainty
     for field in date_fields:
         if field in formatted_data:
-            value = formatted_data[field]
+            value = get_string_value(formatted_data[field])
             date_obj = pd.to_datetime(value, errors='coerce', dayfirst=True)
-            formatted_data[field] = date_obj.strftime('%d/%m/%Y') if date_obj is not pd.NaT else value
+            formatted_value = date_obj.strftime('%d/%m/%Y') if date_obj is not pd.NaT else value
+            update_field_with_certainty(field, formatted_value)
+    
+    # Apply country-specific rules (these functions will need to be updated to handle CertainField)
+    # For now, convert to regular dict for processing, then convert back
+    regular_dict = {}
+    certainty_map = {}
+    
+    for key, value in formatted_data.items():
+        regular_dict[key] = get_string_value(value)
+        certainty_map[key] = get_certainty(value)
     
     # Apply country-specific rules
-    if country == "PHL": formatted_data = philippines_rules(formatted_data)
-    if country == "ETH": formatted_data = ethiopia_rules(formatted_data)
-    if country == "KEN": formatted_data = kenya_rules(formatted_data)
-    if country == "NPL": formatted_data = nepal_rules(formatted_data)
-    if country == "LKA": formatted_data = sri_lanka_rules(formatted_data)
-    if country == "UGA": formatted_data = uganda_rules(formatted_data)
-    if country == "IND": formatted_data = india_rules(formatted_data)
+    country_str = get_string_value(formatted_data.get("country", ""))
+    if country_str == "PHL": regular_dict = philippines_rules(regular_dict)
+    if country_str == "ETH": regular_dict = ethiopia_rules(regular_dict)
+    if country_str == "KEN": regular_dict = kenya_rules(regular_dict)
+    if country_str == "NPL": regular_dict = nepal_rules(regular_dict)
+    if country_str == "LKA": regular_dict = sri_lanka_rules(regular_dict)
+    if country_str == "UGA": regular_dict = uganda_rules(regular_dict)
+    if country_str == "IND": regular_dict = india_rules(regular_dict)
     
     # Apply smart country-of-issue derivation for all countries if not already set
-    if not formatted_data.get("country of issue", "").strip():
-        place_of_issue = formatted_data.get("place of issue", "")
+    if not regular_dict.get("country of issue", "").strip():
+        place_of_issue = regular_dict.get("place of issue", "")
         if place_of_issue:
             from src.utils.country_rules import derive_country_of_issue
             derived_country = derive_country_of_issue(place_of_issue)
             if derived_country:
-                formatted_data["country of issue"] = derived_country
+                regular_dict["country of issue"] = derived_country
+
+    # Convert back to CertainField objects with preserved certainty
+    try:
+        from src.passport_extraction import CertainField
+        for key, value in regular_dict.items():
+            certainty = certainty_map.get(key, False)
+            formatted_data[key] = CertainField(value, certainty)
+    except ImportError:
+        # Fallback if import fails
+        formatted_data = regular_dict
 
     return formatted_data
