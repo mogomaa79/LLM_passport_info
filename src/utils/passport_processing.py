@@ -16,8 +16,14 @@ def postprocess(json_data):
     
     # Helper function to extract string value from CertainField or regular string
     def get_string_value(field_value):
+        if field_value is None:
+            return ""
         if hasattr(field_value, '__str__'):
-            return str(field_value)
+            str_value = str(field_value)
+            # Handle "nan", "NaN", "NAN" strings specifically
+            if str_value.lower() in ['nan', 'none', 'null']:
+                return ""
+            return str_value
         return str(field_value) if field_value else ""
     
     # Helper function to get certainty from CertainField
@@ -31,13 +37,17 @@ def postprocess(json_data):
         old_field = formatted_data.get(field_name, "")
         certainty = get_certainty(old_field)
         
+        # Handle None values
+        if new_value is None:
+            new_value = ""
+        
         # Import here to avoid circular imports
         try:
             from src.passport_extraction import CertainField
-            formatted_data[field_name] = CertainField(new_value, certainty)
+            formatted_data[field_name] = CertainField(str(new_value), certainty)
         except ImportError:
             # Fallback if import fails
-            formatted_data[field_name] = new_value
+            formatted_data[field_name] = str(new_value) if new_value is not None else ""
 
     string_fields = [
         "number", "country", "name", "surname", "middle name", "gender",
@@ -165,13 +175,18 @@ def postprocess(json_data):
     for field in string_fields:
         if field in formatted_data:
             value = get_string_value(formatted_data[field]).upper()
-            if value == "NAN": value = ""
+            # Handle various representations of empty/null values
+            if value in ["NAN", "NONE", "NULL", "N/A", "NA"]:
+                value = ""
             value = re.sub(r'[^\w\s]', ' ', value)
             # replace all diacritics with their base letter
             value = unidecode(value)
             value = re.sub(r'\s+', ' ', value)
             if value:
                 update_field_with_certainty(field, value.strip())
+            else:
+                # Explicitly set empty fields to empty CertainField
+                update_field_with_certainty(field, "")
     
     # Format date fields while preserving certainty
     for field in date_fields:
@@ -214,9 +229,27 @@ def postprocess(json_data):
         from src.passport_extraction import CertainField
         for key, value in regular_dict.items():
             certainty = certainty_map.get(key, False)
-            formatted_data[key] = CertainField(value, certainty)
+            # Handle None values
+            if value is None:
+                value = ""
+            formatted_data[key] = CertainField(str(value), certainty)
     except ImportError:
         # Fallback if import fails
         formatted_data = regular_dict
+
+    # Final pass: ensure all None values are converted to empty CertainField objects
+    try:
+        from src.passport_extraction import CertainField
+        for key, value in formatted_data.items():
+            if value is None:
+                formatted_data[key] = CertainField("", False)
+            elif not isinstance(value, CertainField):
+                # Convert regular values to CertainField objects
+                formatted_data[key] = CertainField(str(value) if value is not None else "", False)
+    except ImportError:
+        # Fallback if import fails
+        for key, value in formatted_data.items():
+            if value is None:
+                formatted_data[key] = ""
 
     return formatted_data

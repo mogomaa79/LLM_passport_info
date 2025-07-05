@@ -27,7 +27,7 @@ share/python-wheels/
 MANIFEST
 .DS_Store
 static/*.parquet
-
+simple_results/
 results/
 
 # PyInstaller

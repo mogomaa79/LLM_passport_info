@@ -7,6 +7,7 @@ import fuzzywuzzy
 import traceback
 from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
+from collections import Counter
 
 # Define the required OAuth 2.0 scope
 SCOPES = [
@@ -191,19 +192,58 @@ class ResultsAgent:
                     gemini_value = row.get(mapped_field)
                     if not gemini_value and field == "Passport ID":
                         gemini_value = row.get("outputs.original number")
-                if pd.isna(gemini_value):
+                    
+                    # Handle CertainField objects - extract string value
+                    if hasattr(gemini_value, '__str__'):
+                        gemini_value = str(gemini_value)
+                    
+                    # Handle "nan", "NaN", "NAN" strings specifically
+                    if isinstance(gemini_value, str) and gemini_value.lower() in ['nan', 'none', 'null', 'n/a', 'na']:
+                        gemini_value = ""
+                    
+                if pd.isna(gemini_value) or gemini_value is None:
                     return ""
                 else:
                     return gemini_value
             else:
                 return ""
+        
+        def get_gemini_certainty(series):
+            maid_id = series["Maid’s ID"]
+            field = series["Modified Field"]
+            mapped_field = google_sheet_columns.get(field)
+            if mapped_field:
+                row = df[df["inputs.image_id"] == maid_id]
+                if row.empty:
+                    return False
+                else:
+                    row = row.iloc[0]
+                    
+                    # Try to get certainty directly from CertainField object first
+                    gemini_field = row.get(mapped_field)
+                    if hasattr(gemini_field, 'certainty'):
+                        return gemini_field.certainty
+                    
+                    # Fallback: Get certainty from the certainty column
+                    certainty_data = row.get('certainty', '{}')
+                    if isinstance(certainty_data, str):
+                        try:
+                            certainty_dict = json.loads(certainty_data)
+                            field_name = mapped_field.split('.')[1]
+                            return certainty_dict.get(field_name, False)
+                        except:
+                            return False
+                    return False
+            else:
+                return False
             
         filtered_df = merged_df[['Maid’s ID', 'Modified Field', 'Agent Value', 'OCR Value']]
         filtered_df["Gemini Value"] = filtered_df.apply(get_gemini_value, axis=1)
+        filtered_df["Gemini Certainty"] = filtered_df.apply(get_gemini_certainty, axis=1)
         filtered_df["Edited Agent Value"] = filtered_df.apply(lambda row: self.edit_agent_value(row['Agent Value'], row['Modified Field']), axis=1)
         filtered_df["Similarity"] = filtered_df.apply(lambda row: row['Gemini Value'] == row['Edited Agent Value'], axis=1)
         print(filtered_df[filtered_df["Similarity"] == False].shape[0])
-        filtered_df = filtered_df[['Maid’s ID', 'Modified Field', 'Edited Agent Value', 'Gemini Value', 'Similarity', 'Agent Value', 'OCR Value']]
+        filtered_df = filtered_df[['Maid’s ID', 'Modified Field', 'Edited Agent Value', 'Gemini Value', 'Similarity', 'Gemini Certainty', 'Agent Value', 'OCR Value']]
 
         filtered_df.dropna(subset=['Maid’s ID'], inplace=True)
         filtered_df['Maid’s ID'] = filtered_df['Maid’s ID'].astype(int)
@@ -220,6 +260,8 @@ class ResultsAgent:
         worksheet.freeze(rows=1)
 
 def save_results(results, results_path):
+    from src.passport_extraction import CertainField
+    
     df = pd.DataFrame(results.to_pandas())
     if 'inputs.multimodal_prompt' not in df.columns:
         df["inputs.image_id"] = df["inputs.inputs"].apply(lambda x: x["image_id"])
@@ -227,9 +269,91 @@ def save_results(results, results_path):
     else:
         df.drop(columns=['inputs.multimodal_prompt'], inplace=True)
 
-    df['output'] = df.apply(lambda row: json.dumps({key.split('.')[1]: row[key] for key in df.columns if key.startswith("output")}), axis=1)
-    df.rename(columns={'input.image_id': 'image_id'}, inplace=True)
-    df.to_csv(results_path, index=False) 
+    # Aggregate repetitions to get most frequent values and certainty with CertainField objects
+    def aggregate_repetitions(df):
+        """Aggregate repetitions by taking most frequent values and creating CertainField objects."""
+        aggregated_rows = []
+        
+        # Group by image_id to process repetitions
+        grouped = df.groupby('inputs.image_id')
+        
+        for image_id, group in grouped:
+            # Take the first row as template
+            aggregated_row = group.iloc[0].copy()
+            
+            # Get all output columns
+            output_cols = [col for col in group.columns if col.startswith('outputs.')]
+            aggregated_outputs = {}
+            field_certainties = {}
+            
+            for col in output_cols:
+                field_name = col.split('.')[1]
+                # Get all values including None, then clean them
+                all_values = group[col].tolist()
+                
+                # Convert None values to empty strings and clean up
+                cleaned_values = []
+                for v in all_values:
+                    if v is None or pd.isna(v):
+                        cleaned_values.append("")
+                    else:
+                        str_value = str(v)
+                        # Handle "nan", "NaN", "NAN" strings specifically
+                        if str_value.lower() in ['nan', 'none', 'null', 'n/a', 'na']:
+                            cleaned_values.append("")
+                        else:
+                            cleaned_values.append(str_value)
+                
+                # Remove empty strings to get meaningful values for frequency counting
+                non_empty_values = [v for v in cleaned_values if v.strip()]
+                
+                if len(non_empty_values) > 1:
+                    # Get most frequent value among non-empty values
+                    value_counts = Counter(non_empty_values)
+                    most_common_value, most_common_count = value_counts.most_common(1)[0]
+                    total_non_empty_count = len(non_empty_values)
+                    
+                    # Certainty is True if all non-empty values agree
+                    certainty = (most_common_count == total_non_empty_count)
+                    
+                    # Create CertainField object
+                    certain_field = CertainField(most_common_value, certainty)
+                    
+                    aggregated_outputs[field_name] = most_common_value
+                    field_certainties[field_name] = certainty
+                    
+                    # Update the aggregated row with CertainField object
+                    aggregated_row[col] = certain_field
+                elif len(non_empty_values) == 1:
+                    # Single non-empty value - create CertainField with no certainty
+                    value = non_empty_values[0]
+                    certain_field = CertainField(value, False)
+                    
+                    aggregated_outputs[field_name] = value
+                    field_certainties[field_name] = False
+                    aggregated_row[col] = certain_field
+                else:
+                    # No non-empty values or all None - create empty CertainField
+                    certain_field = CertainField("", False)
+                    
+                    aggregated_outputs[field_name] = ""
+                    field_certainties[field_name] = False
+                    aggregated_row[col] = certain_field
+            
+            # Create output and certainty JSON strings
+            aggregated_row['output'] = json.dumps(aggregated_outputs)
+            aggregated_row['certainty'] = json.dumps(field_certainties)
+            
+            aggregated_rows.append(aggregated_row)
+        
+        return pd.DataFrame(aggregated_rows)
+    
+    # Aggregate the repetitions
+    aggregated_df = aggregate_repetitions(df)
+    
+    # Clean up columns
+    aggregated_df.rename(columns={'input.image_id': 'image_id'}, inplace=True)
+    aggregated_df.to_csv(results_path, index=False) 
 
 def field_match(outputs: dict, reference_outputs: dict) -> float:
     try:
@@ -238,20 +362,22 @@ def field_match(outputs: dict, reference_outputs: dict) -> float:
         country = fuzzywuzzy.process.extractOne(reference_outputs["nationality"], mapper.keys())[0]
         convert = lambda value: pd.to_datetime(value).strftime('%d/%m/%Y') if pd.to_datetime(value, errors='coerce') is not pd.NaT else value
         correct = 0
-        correct += outputs["number"] == reference_outputs["passport id"]
-        correct += outputs["expiry date"] == convert(reference_outputs["passport expiry date"])
-        correct += outputs["issue date"] == convert(reference_outputs["passport issue date"])
-        correct += outputs["birth date"] == convert(reference_outputs["birthdate"])
-        correct += outputs["place of issue"] == reference_outputs["passport place(en)"]
-        correct += outputs["place of birth"] == reference_outputs["birth place"]
-        correct += outputs["country of issue"] == reference_outputs["country of issue"]
-        correct += outputs["country"] == mapper.get(country, "XXX")
-        correct += outputs["gender"] == reference_outputs["gender"][0]
-        correct += outputs["name"] == reference_outputs["first name"]
-        correct += outputs["father name"] == (reference_outputs["last name"] if country == "India" else "")
-        correct += outputs["mother name"] == (reference_outputs["mother name"].split()[0] if country == "India" else "")
-        correct += outputs["middle name"] == ("" if country != "Philippines" else reference_outputs["middle name"])
-        correct += outputs["surname"] == (reference_outputs["middle name"] if country == "India" else reference_outputs["last name"])
+        
+        # Use .get() with default values to avoid KeyError issues
+        correct += outputs.get("number", "") == reference_outputs.get("passport id", "")
+        correct += outputs.get("expiry date", "") == convert(reference_outputs.get("passport expiry date", ""))
+        correct += outputs.get("issue date", "") == convert(reference_outputs.get("passport issue date", ""))
+        correct += outputs.get("birth date", "") == convert(reference_outputs.get("birthdate", ""))
+        correct += outputs.get("place of issue", "") == reference_outputs.get("passport place(en)", "")
+        correct += outputs.get("place of birth", "") == reference_outputs.get("birth place", "")
+        correct += outputs.get("country of issue", "") == reference_outputs.get("country of issue", "")
+        correct += outputs.get("country", "") == mapper.get(country, "XXX")
+        correct += outputs.get("gender", "") == reference_outputs.get("gender", [""])[0]
+        correct += outputs.get("name", "") == reference_outputs.get("first name", "")
+        correct += outputs.get("father name", "") == (reference_outputs.get("last name", "") if country == "India" else "")
+        correct += outputs.get("mother name", "") == (reference_outputs.get("mother name", "").split()[0] if country == "India" and reference_outputs.get("mother name", "") else "")
+        correct += outputs.get("middle name", "") == ("" if country != "Philippines" else reference_outputs.get("middle name", ""))
+        correct += outputs.get("surname", "") == (reference_outputs.get("middle name", "") if country == "India" else reference_outputs.get("last name", ""))
 
         return correct / 14
     
@@ -261,4 +387,4 @@ def field_match(outputs: dict, reference_outputs: dict) -> float:
         return 0
 
 def full_passport(outputs: dict, reference_outputs: dict) -> bool:
-    return field_match(outputs, reference_outputs) == 1      
+    return field_match(outputs, reference_outputs) == 1
