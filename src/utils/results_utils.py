@@ -269,6 +269,11 @@ def save_results(results, results_path):
     else:
         df.drop(columns=['inputs.multimodal_prompt'], inplace=True)
 
+    # Save the full CSV before grouping
+    full_results_path = results_path.replace('_results.csv', '_full_results.csv')
+    df.to_csv(full_results_path, index=False)
+    print(f"Saved full results before grouping to: {full_results_path}")
+
     # Aggregate repetitions to get most frequent values and certainty with CertainField objects
     def aggregate_repetitions(df):
         """Aggregate repetitions by taking most frequent values and creating CertainField objects."""
@@ -353,7 +358,10 @@ def save_results(results, results_path):
     
     # Clean up columns
     aggregated_df.rename(columns={'input.image_id': 'image_id'}, inplace=True)
-    aggregated_df.to_csv(results_path, index=False) 
+    
+    # Save the final aggregated CSV
+    aggregated_df.to_csv(results_path, index=False)
+    print(f"Saved final aggregated results to: {results_path}")
 
 def field_match(outputs: dict, reference_outputs: dict) -> float:
     try:

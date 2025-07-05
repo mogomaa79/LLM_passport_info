@@ -33,9 +33,8 @@ def postprocess(json_data):
         return False
     
     # Helper function to update field while preserving certainty
-    def update_field_with_certainty(field_name, new_value):
+    def update_field_with_certainty(field_name, new_value, certainty=False):
         old_field = formatted_data.get(field_name, "")
-        certainty = get_certainty(old_field)
         
         # Handle None values
         if new_value is None:
@@ -92,34 +91,52 @@ def postprocess(json_data):
 
     country = get_string_value(formatted_data.get("country", ""))
 
-    if len(mrz_line1) >= 44 and country not in ["LKA", "IND"]:
-        name_part = mrz_line1[5:]
-        if "<<" in name_part:
+    if len(mrz_line1) >= 8 and country not in ["LKA", "IND"]: 
+        surname_start_pos = -1
+        if country and len(country) == 3:
+            # Look for the country code in MRZ line 1
+            country_pos = mrz_line1.find(country)
+            if country_pos >= 0:
+                surname_start_pos = country_pos + 3  # Start after the 3-letter country code
+        
+        # Fallback to position 5 if country code not found
+        if surname_start_pos == -1:
+            surname_start_pos = 5
+        
+        name_part = mrz_line1[surname_start_pos:] if len(mrz_line1) > surname_start_pos else ""
+        
+        # Get OCR name lengths for guidance
+        ocr_surname = get_string_value(formatted_data.get("surname", ""))
+        ocr_name = get_string_value(formatted_data.get("name", ""))
+        
+        if name_part and "<<" in name_part:
             surname_end = name_part.find("<<")
-            if surname_end > 0 and mrz_line1[2:5] == country:
+            
+            if surname_end > 0:
                 surname = name_part[:surname_end].replace("<", " ").strip()
                 formatted_data["mrz_surname"] = surname
+                
                 if surname:
                     clean_surname = re.sub(r'[^\w\s]', '', surname).upper().replace(" ", "")
-                    clean_original = re.sub(r'[^\w\s]', '', get_string_value(formatted_data.get("surname", ""))).upper().replace(" ", "")
-                    if clean_original != clean_surname:
-                        update_field_with_certainty("surname", surname)
+                    clean_original = re.sub(r'[^\w\s]', '', ocr_surname).upper().replace(" ", "")
+                    if clean_surname != clean_original:
+                        update_field_with_certainty("surname", surname, certainty=False)
             
             names_start = name_part.find("<<") + 2
-            if names_start < len(name_part):
+            if names_start < len(name_part) and names_start >= 2:
                 names_end = name_part[names_start:].find("<<")
                 if names_end != -1:
-                    given_names = name_part[names_start:names_end].replace("<", " ").strip()
-                    original_name = get_string_value(formatted_data.get("name", ""))
-                    if original_name:
-                        clean_original = re.sub(r'[^\w\s]', '', original_name).upper().replace(" ", "")
-                        clean_mrz = re.sub(r'[^\w\s]', '', given_names).upper().replace(" ", "")
-
-                        max_mrz_chars = len(name_part) - names_start
-                        
-                        if clean_original != clean_mrz and (len(clean_original) <= len(clean_mrz) and len(clean_original) <= max_mrz_chars):
-                            update_field_with_certainty("name", given_names)
-                    else:
+                    given_names = name_part[names_start:names_start + names_end].replace("<", " ").strip()
+                else:
+                    # Use all remaining characters if no second "<<" found (incomplete MRZ)
+                    given_names = name_part[names_start:].replace("<", " ").strip()
+                
+                if given_names:
+                    clean_mrz = re.sub(r'[^\w\s]', '', given_names).upper().replace(" ", "")
+                    clean_original = re.sub(r'[^\w\s]', '', ocr_name).upper().replace(" ", "")
+                    
+                    if (not clean_original or len(clean_original) < 3 or
+                        (len(clean_mrz) >= len(clean_original) and clean_original != clean_mrz)):
                         update_field_with_certainty("name", given_names)
     
     if len(mrz_line2) >= 10:

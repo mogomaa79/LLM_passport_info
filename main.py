@@ -7,7 +7,8 @@ from collections import Counter
 from typing import List, Dict, Any
 
 from src.passport_extraction import PassportExtraction, CertainField
-from src.utils import save_results, postprocess, field_match, full_passport, ResultsAgent
+from src.utils import save_results, field_match, full_passport, ResultsAgent
+# from src.utils import save_results, postprocess, field_match, full_passport, ResultsAgent
 
 from langchain_google_genai import ChatGoogleGenerativeAI
 
@@ -21,9 +22,9 @@ load_dotenv()
 LANGSMITH_API_KEY = os.getenv("LANGSMITH_API_KEY")
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
 
-DATASET_NAME = "Philippines"
+DATASET_NAME = "Kenya"
 MODEL = "gemini-2.5-pro"
-SPLITS = ["no"]
+SPLITS = ["test"]
 NUM_RUNS = 3  # Number of times to run each extraction for certainty calculation
 
 GOOGLE_SHEETS_CREDENTIALS_PATH = "credentials.json"
@@ -146,16 +147,33 @@ def simple_target_function(llm_chain):
         result = llm_chain.invoke(formatted_inputs)
         
         # Apply postprocessing - handle both dict and Pydantic model objects
+        # COMMENTED OUT: No postprocessing as requested
+        # if hasattr(result, 'model_dump'):
+        #     # It's a Pydantic model
+        #     postprocessed_results = postprocess(result.model_dump())
+        # elif isinstance(result, dict):
+        #     # It's already a dict
+        #     postprocessed_results = postprocess(result)
+        # else:
+        #     # Fallback - try to convert to dict
+        #     try:
+        #         postprocessed_results = postprocess(dict(result))
+        #     except Exception as e:
+        #         print(f"Failed to convert result to dict: {e}")
+        #         # Return empty dict as fallback
+        #         postprocessed_results = {}
+        
+        # Convert raw results to dictionary format expected by evaluators (no postprocessing)
         if hasattr(result, 'model_dump'):
             # It's a Pydantic model
-            postprocessed_results = postprocess(result.model_dump())
+            postprocessed_results = result.model_dump()
         elif isinstance(result, dict):
             # It's already a dict
-            postprocessed_results = postprocess(result)
+            postprocessed_results = result
         else:
             # Fallback - try to convert to dict
             try:
-                postprocessed_results = postprocess(dict(result))
+                postprocessed_results = dict(result)
             except Exception as e:
                 print(f"Failed to convert result to dict: {e}")
                 # Return empty dict as fallback
@@ -211,8 +229,6 @@ def field_match_with_repetitions(outputs: dict, reference_outputs: dict) -> dict
         print(f"Error in field_match_with_repetitions: {e}")
         traceback.print_exc()
         return {"key": "field_match_score", "score": 0.0}
-
-
 
 def full_passport_with_repetitions(outputs: dict, reference_outputs: dict) -> dict:
     """
@@ -275,8 +291,8 @@ def main():
             evaluators=[field_match_with_repetitions, full_passport_with_repetitions],
             experiment_prefix=f"{MODEL} ",
             client=client,
-            max_concurrency=15,  # Increased concurrency since we're no longer doing multiple runs per example
-            num_repetitions=NUM_RUNS,  # Use LangSmith's built-in repetitions
+            max_concurrency=20,
+            num_repetitions=NUM_RUNS,
         )
 
         print("\nRun on dataset completed successfully!")

@@ -372,7 +372,6 @@ def philippines_rules(formatted_data):
             return ""
     
     formatted_data["number"] = process_number(formatted_data.get("number", ""))
-    formatted_data["middle name"] = ""
     formatted_data["mother name"] = ""
     formatted_data["father name"] = ""
 
