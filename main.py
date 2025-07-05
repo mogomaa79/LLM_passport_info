@@ -22,7 +22,7 @@ load_dotenv()
 LANGSMITH_API_KEY = os.getenv("LANGSMITH_API_KEY")
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
 
-DATASET_NAME = "Uganda"
+DATASET_NAME = "India"
 MODEL = "gemini-2.5-pro"
 SPLITS = ["test"]
 NUM_RUNS = 3  # Number of times to run each extraction for certainty calculation

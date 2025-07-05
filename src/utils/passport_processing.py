@@ -89,24 +89,24 @@ def postprocess(json_data):
     if mrz_country_l2 in mapper.values():
         update_field_with_certainty("country", mrz_country_l2)
 
-    country = get_string_value(formatted_data.get("country", ""))
-
     # # Check if MRZ line 1 has corrupted data (more than 2 consecutive '<' followed by alphabetical characters)
     # def is_mrz_corrupted(mrz_line):
     #     """Check if MRZ line has corrupted data patterns that should be disregarded."""
     #     if not mrz_line:
     #         return False
         
+    #     # Look for patterns like "<<<" or more consecutive '<' followed by alphabetical characters
     #     import re
-    #     # Find sequences of 2 or more consecutive '<' followed by alphabetical characters
+    #     # Find sequences of 3 or more consecutive '<' followed by alphabetical characters
     #     pattern = r'<{2,}[A-Z]'
     #     if re.search(pattern, mrz_line):
     #         return True
     #     return False
 
     # # Check if MRZ is corrupted before processing
-    # mrz_corrupted = is_mrz_corrupted(mrz_line1)
-    # if len(mrz_line1) >= 8 and country not in ["IND"] and not mrz_corrupted: 
+    # mrz_corrupted = is_mrz_corrupted(mrz_line1) or is_mrz_corrupted(mrz_line2)
+    
+    # if len(mrz_line1) >= 8 and country not in ["LKA", "IND"] and not mrz_corrupted: 
     #     surname_start_pos = -1
     #     if country and len(country) == 3:
     #         # Look for the country code in MRZ line 1
@@ -153,6 +153,10 @@ def postprocess(json_data):
     #                 if (not clean_original or len(clean_original) < 3 or
     #                     (len(clean_mrz) >= len(clean_original) and clean_original != clean_mrz)):
     #                     update_field_with_certainty("name", given_names)
+
+    country = formatted_data.get("country", "")
+    if formatted_data.get("surname", "").startswith(country) and country*2 not in mrz_line1:
+        update_field_with_certainty("surname", formatted_data.get("surname", "")[3:])
     
     if len(mrz_line2) >= 10:
         doc_number = mrz_line2[:9].replace("<", "").strip()
