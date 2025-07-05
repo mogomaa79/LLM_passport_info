@@ -1,7 +1,4 @@
 Watch the Prompt Engineering Workshop --> Done
-Rewrite all prompts for all countries
-Retest on new prompts
-Check on Gemini Confidence Level
 
 passport no. compare both according to rules, regex, format, diacritcal
 gemini --> EXTRACT EVERYTHING
@@ -10,3 +7,15 @@ if we cannot use postprocessing, we should check confidence.
 if good, then use it. Else, use another LLMs
 
 Place of Issue, Place of Birth, Father Name, Mother Name, Date of Issue, TOO LONG FIRST OR LAST NAMES
+
+Run 3 Times on Gemini 2.5 Pro
+
+For non-MRZ fields, check if all 3 are similar, then CERTAIN else UNCERTAIN & OUTPUT MOST FREQUENT
+CASE: All are different --> NULL
+
+For MRZ fields, output the most FREQUENT out of all 3 runs and compare with the rules, IF ALL IS WELL, sure, any issue not sure
+
+Compare before postprocessing
+
+Field, Certainty
+If UNCERTAIN, output postprocessed 
